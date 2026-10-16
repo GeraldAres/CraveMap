@@ -1,4 +1,5 @@
 using MidtermSprint.Domain.Entities;
+using MidtermSprint.Application.Search;
 
 namespace MidtermSprint.Application.Abstractions;
 
@@ -15,5 +16,9 @@ public interface IRestaurantRepository
 
     Task<IReadOnlyList<Restaurant>> GetPublishedByIdsAsync(
         IReadOnlyCollection<int> ids,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Restaurant>> GetPublishedWithinBoundsAsync(
+        GeoBounds bounds,
         CancellationToken cancellationToken = default);
 }

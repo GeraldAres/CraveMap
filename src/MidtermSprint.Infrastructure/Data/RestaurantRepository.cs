@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MidtermSprint.Application.Abstractions;
+using MidtermSprint.Application.Search;
 using MidtermSprint.Domain.Entities;
 
 namespace MidtermSprint.Infrastructure.Data;
@@ -39,6 +40,31 @@ public sealed class RestaurantRepository(IDbContextFactory<CraveMapDbContext> co
         return await PublishedQuery(context)
             .Where(restaurant => ids.Contains(restaurant.Id))
             .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Restaurant>> GetPublishedWithinBoundsAsync(
+        GeoBounds bounds,
+        CancellationToken cancellationToken = default)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+        var query = PublishedQuery(context)
+            .Where(restaurant =>
+                restaurant.Latitude >= bounds.MinLatitude &&
+                restaurant.Latitude <= bounds.MaxLatitude);
+
+        if (!bounds.IncludesAllLongitudes)
+        {
+            query = bounds.CrossesAntimeridian
+                ? query.Where(restaurant =>
+                    restaurant.Longitude >= bounds.WestLongitude ||
+                    restaurant.Longitude <= bounds.EastLongitude)
+                : query.Where(restaurant =>
+                    restaurant.Longitude >= bounds.WestLongitude &&
+                    restaurant.Longitude <= bounds.EastLongitude);
+        }
+
+        return await query.ToListAsync(cancellationToken);
     }
 
     private static IQueryable<Restaurant> PublishedQuery(CraveMapDbContext context) =>
