@@ -1,12 +1,22 @@
 using MidtermSprint.Web.Components;
+using MidtermSprint.Infrastructure;
+using MidtermSprint.Infrastructure.Seeding;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddCraveMapInfrastructure(builder.Configuration);
+builder.Services.AddSingleton(TimeProvider.System);
 
 var app = builder.Build();
+Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "App_Data"));
+
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    await scope.ServiceProvider.GetRequiredService<DatabaseSeeder>().InitializeAsync();
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

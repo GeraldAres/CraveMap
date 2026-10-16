@@ -1,5 +1,11 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/MidtermSprint.Application/MidtermSprint.Application.csproj" />
+    <Project Path="src/MidtermSprint.Domain/MidtermSprint.Domain.csproj" />
+    <Project Path="src/MidtermSprint.Infrastructure/MidtermSprint.Infrastructure.csproj" />
     <Project Path="src/MidtermSprint.Web/MidtermSprint.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MidtermSprint.Tests/MidtermSprint.Tests.csproj" />
   </Folder>
 </Solution>
