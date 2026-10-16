@@ -1,0 +1,20 @@
+{
+  "name": "midtermsprint-web",
+  "private": true,
+  "scripts": {
+    "css:build": "tailwindcss -i Styles/tailwind.css -o wwwroot/css/tailwind.css --minify",
+    "css:watch": "tailwindcss -i Styles/tailwind.css -o wwwroot/css/tailwind.css --watch",
+    "copy:leaflet": "node scripts/copy-leaflet.mjs",
+    "build:assets": "npm run css:build && npm run copy:leaflet"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.14",
+    "tailwindcss": "^4.1.14"
+  },
+  "overrides": {
+    "@parcel/watcher": "^2.6.0"
+  }
+}
