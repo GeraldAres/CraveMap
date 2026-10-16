@@ -44,6 +44,12 @@
                     aria-label="Choose a demo area"
                     value="@SelectedLocationName"
                     @onchange="ChangeLocation">
+                @if (SearchState.SelectedLocation is { } selectedLocation
+                     && !Discovery.SupportedLocations.Any(location =>
+                         string.Equals(location.Name, selectedLocation.Name, StringComparison.Ordinal)))
+                {
+                    <option value="@selectedLocation.Name">@selectedLocation.Name</option>
+                }
                 @foreach (var location in Discovery.SupportedLocations)
                 {
                     <option value="@location.Name">@location.Name</option>

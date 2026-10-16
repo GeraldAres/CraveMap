@@ -17,7 +17,12 @@ public static class SearchUrlBuilder
         AddSet(values, "textures", filters.Textures);
         AddSet(values, "other", filters.OtherCharacteristics);
         AddSet(values, "cuisines", filters.Cuisines);
-        AddSet(values, "niches", filters.Niches);
+        var niches = new HashSet<string>(filters.Niches, StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(niche))
+        {
+            niches.Add(niche);
+        }
+        AddSet(values, "niches", niches);
         AddSet(values, "diets", filters.DietaryPreferences);
         AddSet(values, "allergens", filters.AllergensToAvoid);
         Add(values, "radius", filters.RadiusKm?.ToString(CultureInfo.InvariantCulture));
@@ -26,11 +31,10 @@ public static class SearchUrlBuilder
         Add(values, "maxPrice", filters.MaxPrice?.ToString(CultureInfo.InvariantCulture));
         Add(values, "strict", filters.PriceIsStrict?.ToString().ToLowerInvariant());
         Add(values, "strictAllergen", filters.StrictAllergenMode?.ToString().ToLowerInvariant());
-        Add(values, "openNow", filters.OpenNow == true ? "true" : null);
+        Add(values, "openNow", filters.OpenNow?.ToString().ToLowerInvariant());
         Add(values, "minRating", filters.MinRating?.ToString(CultureInfo.InvariantCulture));
         Add(values, "service", filters.ServiceType?.ToString());
         Add(values, "sort", filters.Sort?.ToString());
-        Add(values, "niche", niche);
 
         return "/explore" + (values.Count == 0
             ? string.Empty

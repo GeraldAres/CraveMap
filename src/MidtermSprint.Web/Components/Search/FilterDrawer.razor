@@ -31,16 +31,16 @@
                 </section>
 
                 <section aria-labelledby="texture-heading">
-                    <h3 id="texture-heading" class="mb-3 font-extrabold">Texture & preparation</h3>
+                    <h3 id="texture-heading" class="mb-3 font-extrabold">Texture</h3>
                     <div class="flex flex-wrap gap-2">
                         @foreach (var item in Textures)
                         {
                             <button type="button" class="@ChoiceClass(_textures, item)" aria-pressed="@(_textures.Contains(item) ? "true" : "false")" @onclick="() => Toggle(_textures, item)">@item</button>
                         }
                     </div>
-                    <p class="mb-2 mt-4 text-xs font-bold text-muted">Preparation & other</p>
+                    <p class="mb-2 mt-4 text-xs font-bold text-muted">Other qualities</p>
                     <div class="flex flex-wrap gap-2">
-                        @foreach (var item in Preparations)
+                        @foreach (var item in OtherQualities)
                         {
                             <button type="button" class="@ChoiceClass(_otherCharacteristics, item)" aria-pressed="@(_otherCharacteristics.Contains(item) ? "true" : "false")" @onclick="() => Toggle(_otherCharacteristics, item)">@item</button>
                         }
@@ -81,13 +81,13 @@
                         Demo information is not a safety guarantee. Confirm ingredients and cross-contact with the restaurant.
                     </p>
                     <div class="flex flex-wrap gap-2">
-                        @foreach (var item in Allergens)
+                        @foreach (var allergen in Allergens)
                         {
                             <button type="button"
-                                    class="@ChoiceClass(_allergens, item)"
-                                    aria-pressed="@(_allergens.Contains(item) ? "true" : "false")"
-                                    @onclick="() => Toggle(_allergens, item)">
-                                <span aria-hidden="true">@( _allergens.Contains(item) ? "✓ " : "＋ " )</span>@item
+                                    class="@ChoiceClass(_allergens, allergen.Value)"
+                                    aria-pressed="@(_allergens.Contains(allergen.Value) ? "true" : "false")"
+                                    @onclick="() => Toggle(_allergens, allergen.Value)">
+                                <span aria-hidden="true">@( _allergens.Contains(allergen.Value) ? "✓ " : "＋ " )</span>@allergen.Label
                             </button>
                         }
                     </div>
@@ -159,12 +159,22 @@
     [Parameter] public EventCallback<ManualSearchFilters> OnApply { get; set; }
 
     private static readonly string[] Flavors = ["Savory", "Sweet", "Spicy", "Sour", "Bitter", "Umami"];
-    private static readonly string[] Textures = ["Crispy", "Crunchy", "Creamy", "Chewy", "Tender"];
-    private static readonly string[] Preparations = ["Fried", "Grilled", "Baked", "Fresh"];
-    private static readonly string[] Cuisines = ["Filipino", "Korean", "Japanese", "Chinese", "American", "Italian", "Thai"];
-    private static readonly string[] Niches = ["Street food", "Seafood", "Dessert", "Coffee"];
+    private static readonly string[] Textures = ["Crispy", "Crunchy", "Creamy", "Chewy", "Soft"];
+    private static readonly string[] OtherQualities = ["Hot meals", "Cold dishes", "Refreshing drinks", "Comfort food"];
+    private static readonly string[] Cuisines = ["Filipino", "Japanese", "Korean", "Chinese", "Italian", "American", "Cafe", "Fusion"];
+    private static readonly string[] Niches =
+    [
+        "Silog Meals", "Korean Street Food", "Ramen", "Specialty Coffee", "Matcha", "Fried Chicken",
+        "Milk Tea", "Artisanal Desserts", "Filipino Comfort Food", "Affordable Eats",
+        "Japanese Comfort Food", "Pasta"
+    ];
     private static readonly string[] DietaryPreferences = ["Vegetarian", "Vegan", "Halal"];
-    private static readonly string[] Allergens = ["Peanuts", "Tree nuts", "Dairy", "Eggs", "Soy", "Wheat", "Crustaceans", "Molluscs", "Fish", "Sesame"];
+    private static readonly (string Label, string Value)[] Allergens =
+    [
+        ("Peanuts", "Peanuts"), ("Tree nuts", "Tree nuts"), ("Milk (dairy)", "Milk"),
+        ("Eggs", "Eggs"), ("Soy", "Soy"), ("Wheat", "Wheat"), ("Crustaceans", "Crustaceans"),
+        ("Molluscs", "Molluscs"), ("Fish", "Fish"), ("Sesame", "Sesame")
+    ];
 
     private readonly HashSet<string> _flavors = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _textures = new(StringComparer.OrdinalIgnoreCase);
@@ -259,12 +269,13 @@
             DietaryPreferences = new HashSet<string>(_dietary, StringComparer.OrdinalIgnoreCase),
             AllergensToAvoid = new HashSet<string>(_allergens, StringComparer.OrdinalIgnoreCase),
             MaxPrice = ParseDecimal(_maxPrice),
-            PriceIsStrict = _priceIsStrict,
+            PriceIsStrict = ParseDecimal(_maxPrice).HasValue ? _priceIsStrict : null,
             RadiusKm = _radiusKm,
             MinRating = ParseRating(_minimumRating),
-            OpenNow = _openNow,
-            ServiceType = serviceType,
-            StrictAllergenMode = _strictAllergenMode
+            OpenNow = _openNow ? true : null,
+            ServiceType = serviceType == ServiceType.Any ? null : serviceType,
+            StrictAllergenMode = _allergens.Count > 0 ? _strictAllergenMode : null,
+            Sort = InitialFilters.Sort
         });
     }
 

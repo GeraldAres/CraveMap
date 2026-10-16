@@ -1,0 +1,538 @@
+@page "/explore"
+@implements IDisposable
+@inject ISearchService SearchService
+@inject IQueryInterpreter QueryInterpreter
+@inject SearchStateService SearchState
+@inject NavigationManager Navigation
+@inject DiscoveryOptions Discovery
+@inject ILogger<Explore> Logger
+
+<PageTitle>@(_query.Length == 0 ? "Explore food" : $"Explore “{_query}”") — CraveMap</PageTitle>
+<HeadContent>
+    <meta name="description" content="Browse nearby sample menus that match your food cravings and preferences." />
+</HeadContent>
+
+<section class="border-b border-[#eee4d8] bg-[linear-gradient(180deg,#fff4e9_0%,#fffaf3_100%)]">
+    <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        <p class="text-xs font-extrabold uppercase tracking-[0.16em] text-tomato-dark">CraveMap discoveries</p>
+        <h1 class="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Find your next bite</h1>
+        <p class="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+            Search sample menus by craving, cuisine, budget, and more. Listings and dietary details are fictional demo data.
+        </p>
+
+        <form class="mt-6 flex flex-col gap-3 rounded-2xl border border-[#e7ddd1] bg-white p-3 shadow-sm sm:flex-row sm:items-center"
+              role="search"
+              aria-label="Search menus"
+              @onsubmit="SubmitSearch"
+              @onsubmit:preventDefault="true">
+            <label for="explore-query" class="sr-only">Describe what you’re craving</label>
+            <input id="explore-query"
+                   class="min-h-12 min-w-0 flex-1 rounded-xl px-3 text-base font-semibold outline-none placeholder:font-normal placeholder:text-[#9b9287]"
+                   type="search"
+                   maxlength="240"
+                   autocomplete="off"
+                   placeholder="Try crispy, spicy, Filipino comfort food…"
+                   @bind="_query"
+                   @bind:event="oninput" />
+            <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-tomato px-6 font-extrabold text-white hover:bg-tomato-dark">
+                Search menus <span aria-hidden="true">→</span>
+            </button>
+        </form>
+
+        @if (_activeChips.Count > 0)
+        {
+            <section class="mt-5" aria-label="Active search filters">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="mr-1 text-xs font-extrabold uppercase tracking-[0.1em] text-muted">Searching for</span>
+                    @foreach (var chip in _activeChips)
+                    {
+                        <button type="button"
+                                class="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#edc5b6] bg-white px-3 text-sm font-semibold text-ink hover:border-tomato hover:text-tomato-dark"
+                                aria-label="@($"Remove {chip.Label} filter")"
+                                @onclick="() => RemoveChipAsync(chip)">
+                            <span>@chip.Label</span><span class="text-muted" aria-hidden="true">×</span>
+                        </button>
+                    }
+                    <button type="button" class="min-h-9 px-2 text-sm font-bold text-tomato-dark underline-offset-2 hover:underline" @onclick="ClearAllAsync">Clear all</button>
+                </div>
+            </section>
+        }
+    </div>
+</section>
+
+<section class="mx-auto max-w-7xl px-4 py-7 sm:px-6 sm:py-9 lg:px-8" aria-label="Search results" aria-live="polite" aria-busy="@(_isLoading ? "true" : "false")">
+    <div class="mb-6 flex flex-col gap-4 border-b border-[#eee4d8] pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+            <p class="text-xs font-extrabold uppercase tracking-[0.14em] text-tomato-dark">Around @_selectedLocation.Name</p>
+            <h2 class="mt-1 text-xl font-extrabold tracking-tight">Menu matches</h2>
+            @if (!_isLoading && _result is not null)
+            {
+                <p class="mt-1 text-sm text-muted">@_result.TotalCount sample restaurant@(_result.TotalCount == 1 ? "" : "s") found</p>
+            }
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+            <button type="button"
+                    class="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#e7ddd1] bg-white px-4 text-sm font-bold hover:border-tomato/50"
+                    aria-haspopup="dialog"
+                    @onclick="SearchState.OpenFilterDrawer">
+                <span aria-hidden="true">⚙</span> Filters
+                @if (_manualFilterCount > 0)
+                {
+                    <span class="grid size-5 place-items-center rounded-full bg-tomato text-xs text-white">@_manualFilterCount</span>
+                }
+            </button>
+            <label class="flex min-h-11 items-center gap-2 rounded-full border border-[#e7ddd1] bg-white px-4 text-sm font-semibold">
+                <span class="text-muted">Sort</span>
+                <select class="max-w-40 bg-transparent font-extrabold outline-none" aria-label="Sort menu matches" value="@SortValue" @onchange="ChangeSort">
+                    <option value="@nameof(SearchSort.BestMatch)">Best match</option>
+                    <option value="@nameof(SearchSort.Nearest)">Nearest</option>
+                    <option value="@nameof(SearchSort.LowestPrice)">Lowest price</option>
+                    <option value="@nameof(SearchSort.HighestRating)">Highest rated</option>
+                </select>
+            </label>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <section aria-label="Loading menu matches" role="status">
+            <p class="mb-4 text-sm font-semibold text-muted">Finding sample menus that match…</p>
+            <div class="grid gap-4 lg:grid-cols-2">
+                @for (var index = 0; index < 4; index++)
+                {
+                    <div class="animate-pulse rounded-2xl border border-[#eee4d8] bg-white p-5">
+                        <div class="h-5 w-2/3 rounded bg-[#eee4d8]"></div>
+                        <div class="mt-4 h-4 w-1/3 rounded bg-[#f3ece3]"></div>
+                        <div class="mt-6 h-20 rounded-xl bg-[#f8f3ec]"></div>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+    else if (_errorMessage is not null)
+    {
+        <section class="rounded-2xl border border-[#f0c3b8] bg-[#fff4ef] p-6 sm:p-8" role="alert">
+            <p class="text-xs font-extrabold uppercase tracking-[0.14em] text-tomato-dark">Search interrupted</p>
+            <h3 class="mt-2 text-xl font-extrabold">We couldn’t load menu matches.</h3>
+            <p class="mt-2 max-w-xl text-sm leading-relaxed text-muted">@_errorMessage</p>
+            <button type="button" class="mt-5 min-h-11 rounded-full bg-tomato px-5 font-extrabold text-white hover:bg-tomato-dark" @onclick="RetryAsync">Try again</button>
+        </section>
+    }
+    else if (_result is { TotalCount: 0 })
+    {
+        <section class="rounded-[1.75rem] border border-dashed border-[#dacbbb] bg-white p-7 sm:p-10" aria-labelledby="empty-heading">
+            <span class="grid size-14 place-items-center rounded-2xl bg-[#fff0e8] text-2xl" aria-hidden="true">🔎</span>
+            <p class="mt-5 text-xs font-extrabold uppercase tracking-[0.14em] text-tomato-dark">No menu matches yet</p>
+            <h3 id="empty-heading" class="mt-2 text-2xl font-black tracking-tight">Let’s loosen the search a little.</h3>
+            <p class="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+                Try a broader craving, a larger radius, or a less strict budget. Allergen exclusions are never relaxed automatically.
+            </p>
+            @if (_result.Suggestions.Count > 0)
+            {
+                <ul class="mt-6 grid gap-3 sm:grid-cols-2">
+                    @foreach (var suggestion in _result.Suggestions)
+                    {
+                        <li>
+                            <button type="button" class="flex min-h-14 w-full items-center justify-between gap-4 rounded-xl border border-[#eee4d8] bg-[#fffaf3] px-4 py-3 text-left text-sm font-bold hover:border-tomato/50"
+                                    @onclick="() => ApplySuggestionAsync(suggestion)">
+                                <span>@suggestion.Label</span><span class="shrink-0 text-tomato-dark" aria-hidden="true">→</span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+            <button type="button" class="mt-6 font-extrabold text-tomato-dark underline-offset-2 hover:underline" @onclick="ClearAllAsync">Clear search and browse all sample menus</button>
+        </section>
+    }
+    else if (_result is not null)
+    {
+        @if (_result.Verified.Count > 0)
+        {
+            <section aria-labelledby="verified-results-heading">
+                <div class="mb-4 flex flex-wrap items-center gap-2">
+                    <h3 id="verified-results-heading" class="text-lg font-extrabold">Menu matches</h3>
+                    <span class="rounded-full bg-[#eaf3e7] px-3 py-1 text-xs font-bold text-leaf">Best available match evidence</span>
+                </div>
+                <div class="grid gap-4 lg:grid-cols-2">
+                    @foreach (var match in _result.Verified)
+                    {
+                        <RestaurantResultCard Match="match" IsUnverified="false" />
+                    }
+                </div>
+            </section>
+        }
+
+        @if (_result.Unverified.Count > 0)
+        {
+            <section class="mt-9" aria-labelledby="unverified-results-heading">
+                <div class="mb-4 rounded-2xl border border-[#efd4ac] bg-[#fff8e9] p-4">
+                    <h3 id="unverified-results-heading" class="font-extrabold text-[#654c20]">More possibilities — check details first</h3>
+                    <p class="mt-1 text-sm leading-relaxed text-[#746e67]">
+                        These sample menus have unknown or cross-contact information for a selected allergen. They are not confirmed safe. Contact the restaurant before ordering.
+                    </p>
+                </div>
+                <div class="grid gap-4 lg:grid-cols-2">
+                    @foreach (var match in _result.Unverified)
+                    {
+                        <RestaurantResultCard Match="match" IsUnverified="true" />
+                    }
+                </div>
+            </section>
+        }
+        <p class="mt-7 rounded-xl border border-[#f0d2c6] bg-[#fff4ef] p-4 text-xs leading-relaxed text-[#794237]">
+            Demo data only. Menu availability, prices, ratings and dietary or allergen information may not reflect reality. Confirm all details directly with each restaurant.
+        </p>
+    }
+</section>
+
+@code {
+    private string _query = string.Empty;
+    private string? _errorMessage;
+    private bool _isLoading;
+    private bool _isLoadingUrl;
+    private string _knownLocationKey = string.Empty;
+    private SearchResult? _result;
+    private ParsedCraving? _parsedCraving;
+    private SupportedLocation _selectedLocation = new();
+    private List<ActiveFilterChip> _activeChips = [];
+    private CancellationTokenSource? _searchCancellation;
+    private ManualSearchFilters _filters = new();
+
+    private string SortValue => (_filters.Sort ?? SearchSort.BestMatch).ToString();
+    private int _manualFilterCount =>
+        _filters.Flavors.Count + _filters.Textures.Count + _filters.OtherCharacteristics.Count
+        + _filters.Cuisines.Count + _filters.Niches.Count + _filters.DietaryPreferences.Count
+        + _filters.AllergensToAvoid.Count + (_filters.MaxPrice.HasValue ? 1 : 0)
+        + (_filters.RadiusKm.HasValue ? 1 : 0) + (_filters.OpenNow == true ? 1 : 0)
+        + (_filters.MinRating.HasValue ? 1 : 0)
+        + (_filters.ServiceType.HasValue && _filters.ServiceType != ServiceType.Any ? 1 : 0);
+
+    protected override async Task OnInitializedAsync()
+    {
+        SearchState.Changed += OnSearchStateChanged;
+        Navigation.LocationChanged += OnLocationChanged;
+        await LoadFromUrlAsync();
+    }
+
+    private async Task LoadFromUrlAsync()
+    {
+        _isLoadingUrl = true;
+        try
+        {
+            var parsed = SearchUrlParser.Parse(Navigation.Uri);
+            _query = parsed.Query;
+            _filters = parsed.Filters;
+            _selectedLocation = ResolveLocation(parsed.Filters);
+            _knownLocationKey = LocationKey(_selectedLocation);
+            SearchState.SetQuery(_query);
+            SearchState.SetFilters(_filters);
+            SearchState.SetSelectedLocation(_selectedLocation);
+            await RunSearchAsync();
+        }
+        finally
+        {
+            _isLoadingUrl = false;
+        }
+    }
+
+    private SupportedLocation ResolveLocation(ManualSearchFilters filters)
+    {
+        var latitude = filters.OriginLatitude;
+        var longitude = filters.OriginLongitude;
+        if (latitude.HasValue && longitude.HasValue)
+        {
+            var location = Discovery.SupportedLocations.FirstOrDefault(candidate =>
+                Math.Abs(candidate.Latitude - latitude.Value) < 0.000001
+                && Math.Abs(candidate.Longitude - longitude.Value) < 0.000001);
+            return location ?? new SupportedLocation
+            {
+                Name = "Custom demo area",
+                Latitude = latitude.Value,
+                Longitude = longitude.Value
+            };
+        }
+
+        return Discovery.SupportedLocations.FirstOrDefault()
+            ?? new SupportedLocation { Name = "Makati demo center", Latitude = 14.5547, Longitude = 121.0244 };
+    }
+
+    private async Task RunSearchAsync()
+    {
+        _searchCancellation?.Cancel();
+        _searchCancellation?.Dispose();
+        _searchCancellation = new CancellationTokenSource();
+        var cancellationToken = _searchCancellation.Token;
+        _isLoading = true;
+        _errorMessage = null;
+        _result = null;
+        BuildChips();
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            _result = await SearchService.SearchAsync(
+                new SearchRequest(_query, _filters),
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Menu search failed for query {SearchQuery}.", _query);
+            _errorMessage = "Please check your connection and try the search again.";
+        }
+        finally
+        {
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                _isLoading = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private async Task SubmitSearch()
+    {
+        SearchState.SetQuery(_query.Trim());
+        NavigateWith(_query.Trim(), _filters);
+    }
+
+    private void NavigateWith(string query, ManualSearchFilters filters) =>
+        Navigation.NavigateTo(SearchUrlBuilder.BuildExploreUri(query, filters, _selectedLocation));
+
+    private Task RetryAsync() => RunSearchAsync();
+
+    private async Task ChangeSort(ChangeEventArgs args)
+    {
+        if (Enum.TryParse<SearchSort>(args.Value?.ToString(), true, out var sort) && Enum.IsDefined(sort))
+        {
+            _filters = _filters with { Sort = sort };
+            SearchState.SetFilters(_filters);
+            NavigateWith(_query, _filters);
+        }
+        await Task.CompletedTask;
+    }
+
+    private void BuildChips()
+    {
+        _parsedCraving = QueryInterpreter.Interpret(_query);
+        var chips = new List<ActiveFilterChip>();
+        chips.AddRange(_parsedCraving.DetectedChips.Select(chip =>
+            new ActiveFilterChip(chip.Label, chip.Kind, chip.SourceText, IsQuery: true)));
+
+        AddManualChips(chips, _filters.Flavors, SearchChipKind.Flavor);
+        AddManualChips(chips, _filters.Textures, SearchChipKind.Texture);
+        AddManualChips(chips, _filters.OtherCharacteristics, SearchChipKind.OtherCharacteristic);
+        AddManualChips(chips, _filters.Cuisines, SearchChipKind.Cuisine);
+        AddManualChips(chips, _filters.Niches, SearchChipKind.Niche);
+        AddManualChips(chips, _filters.DietaryPreferences, SearchChipKind.DietaryPreference);
+        AddManualChips(chips, _filters.AllergensToAvoid, SearchChipKind.Allergen);
+        if (_filters.MaxPrice is { } price)
+        {
+            chips.Add(new ActiveFilterChip(
+                $"{(_filters.PriceIsStrict == false ? "Preferably under" : "Under")} ₱{price:0.##}",
+                SearchChipKind.Budget,
+                string.Empty,
+                IsQuery: false,
+                FilterKey: "MaxPrice"));
+        }
+        if (_filters.RadiusKm is { } radius)
+        {
+            chips.Add(new ActiveFilterChip($"Within {radius:0.#} km", SearchChipKind.Distance, string.Empty, IsQuery: false, FilterKey: "RadiusKm"));
+        }
+        if (_filters.OpenNow == true)
+        {
+            chips.Add(new ActiveFilterChip("Open now", SearchChipKind.OtherCharacteristic, "openNow", IsQuery: false, FilterKey: "OpenNow"));
+        }
+        if (_filters.MinRating is { } rating)
+        {
+            chips.Add(new ActiveFilterChip($"{rating:0.#}+ stars", SearchChipKind.OtherCharacteristic, "minRating", IsQuery: false, FilterKey: "MinRating"));
+        }
+        if (_filters.ServiceType is { } service && service != ServiceType.Any)
+        {
+            chips.Add(new ActiveFilterChip(service == ServiceType.DineIn ? "Dine in" : "Takeout", SearchChipKind.OtherCharacteristic, "serviceType", IsQuery: false, FilterKey: "ServiceType"));
+        }
+        if (_filters.StrictAllergenMode == true && _filters.AllergensToAvoid.Count > 0)
+        {
+            chips.Add(new ActiveFilterChip("Strict allergen mode", SearchChipKind.OtherCharacteristic, "strictAllergen", IsQuery: false, FilterKey: "StrictAllergenMode"));
+        }
+
+        _activeChips = chips;
+    }
+
+    private static void AddManualChips(
+        ICollection<ActiveFilterChip> chips,
+        IEnumerable<string> values,
+        SearchChipKind kind)
+    {
+        foreach (var value in values)
+        {
+            chips.Add(new ActiveFilterChip(value, kind, value, IsQuery: false, FilterKey: kind.ToString()));
+        }
+    }
+
+    private async Task RemoveChipAsync(ActiveFilterChip chip)
+    {
+        if (chip.IsQuery)
+        {
+            var stripped = Regex.Replace(
+                _query,
+                Regex.Escape(chip.SourceText),
+                " ",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            _query = Regex.Replace(stripped, @"\s+", " ").Trim(' ', ',', ';', '-');
+            SearchState.SetQuery(_query);
+        }
+        else
+        {
+            _filters = RemoveManualChip(_filters, chip);
+            SearchState.SetFilters(_filters);
+        }
+
+        NavigateWith(_query, _filters);
+        await Task.CompletedTask;
+    }
+
+    private static ManualSearchFilters RemoveManualChip(ManualSearchFilters filters, ActiveFilterChip chip)
+    {
+        IReadOnlySet<string> Without(IEnumerable<string> values)
+        {
+            var result = new HashSet<string>(values, StringComparer.OrdinalIgnoreCase);
+            result.Remove(chip.SourceText);
+            return result;
+        }
+
+        if (chip.FilterKey == "OpenNow")
+        {
+            return filters with { OpenNow = null };
+        }
+        if (chip.FilterKey == "MinRating")
+        {
+            return filters with { MinRating = null };
+        }
+        if (chip.FilterKey == "ServiceType")
+        {
+            return filters with { ServiceType = null };
+        }
+        if (chip.FilterKey == "StrictAllergenMode")
+        {
+            return filters with { StrictAllergenMode = false };
+        }
+
+        return chip.Kind switch
+        {
+            SearchChipKind.Flavor => filters with { Flavors = Without(filters.Flavors) },
+            SearchChipKind.Texture => filters with { Textures = Without(filters.Textures) },
+            SearchChipKind.OtherCharacteristic => filters with { OtherCharacteristics = Without(filters.OtherCharacteristics) },
+            SearchChipKind.Cuisine => filters with { Cuisines = Without(filters.Cuisines) },
+            SearchChipKind.Niche => filters with { Niches = Without(filters.Niches) },
+            SearchChipKind.DietaryPreference => filters with { DietaryPreferences = Without(filters.DietaryPreferences) },
+            SearchChipKind.Allergen => filters with { AllergensToAvoid = Without(filters.AllergensToAvoid) },
+            SearchChipKind.Budget => filters with { MaxPrice = null, PriceIsStrict = null },
+            SearchChipKind.Distance => filters with { RadiusKm = null },
+            _ => filters
+        };
+    }
+
+    private Task ClearAllAsync()
+    {
+        _query = string.Empty;
+        _filters = new ManualSearchFilters
+        {
+            OriginLatitude = _selectedLocation.Latitude,
+            OriginLongitude = _selectedLocation.Longitude
+        };
+        SearchState.SetQuery(_query);
+        SearchState.SetFilters(_filters);
+        NavigateWith(_query, _filters);
+        return Task.CompletedTask;
+    }
+
+    private Task ApplySuggestionAsync(RelaxationSuggestion suggestion)
+    {
+        switch (suggestion.Action)
+        {
+            case RelaxationAction.ExpandRadius when suggestion.RadiusKm is { } radius:
+                _filters = _filters with { RadiusKm = radius };
+                break;
+            case RelaxationAction.RaiseBudget when suggestion.MaxPrice is { } budget:
+                _filters = _filters with { MaxPrice = budget, PriceIsStrict = true };
+                break;
+            case RelaxationAction.RemoveCuisine when suggestion.Cuisine is { } cuisine:
+                _filters = _filters with
+                {
+                    Cuisines = Without(_filters.Cuisines, cuisine),
+                    Niches = Without(_filters.Niches, cuisine)
+                };
+                _query = RemovePhrase(_query, cuisine);
+                break;
+            case RelaxationAction.TrySimilarFlavor:
+                _query = $"{_query} savory".Trim();
+                break;
+        }
+
+        SearchState.SetQuery(_query);
+        SearchState.SetFilters(_filters);
+        NavigateWith(_query, _filters);
+        return Task.CompletedTask;
+    }
+
+    private void OnSearchStateChanged()
+    {
+        if (_isLoadingUrl || SearchState.SelectedLocation is not { } location)
+        {
+            return;
+        }
+
+        var locationKey = LocationKey(location);
+        if (string.Equals(locationKey, _knownLocationKey, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _selectedLocation = location;
+        _knownLocationKey = locationKey;
+        _filters = _filters with
+        {
+            OriginLatitude = location.Latitude,
+            OriginLongitude = location.Longitude
+        };
+        NavigateWith(_query, _filters);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args) =>
+        _ = InvokeAsync(LoadFromUrlAsync);
+
+    private static string LocationKey(SupportedLocation location) =>
+        $"{location.Latitude.ToString(CultureInfo.InvariantCulture)}:{location.Longitude.ToString(CultureInfo.InvariantCulture)}";
+
+    private static IReadOnlySet<string> Without(IEnumerable<string> values, string removed)
+    {
+        var result = new HashSet<string>(values, StringComparer.OrdinalIgnoreCase);
+        result.Remove(removed);
+        return result;
+    }
+
+    private static string RemovePhrase(string source, string phrase)
+    {
+        var stripped = Regex.Replace(source, Regex.Escape(phrase), " ", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        return Regex.Replace(stripped, @"\s+", " ").Trim(' ', ',', ';', '-');
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+        SearchState.Changed -= OnSearchStateChanged;
+        _searchCancellation?.Cancel();
+        _searchCancellation?.Dispose();
+    }
+
+    private sealed record ActiveFilterChip(
+        string Label,
+        SearchChipKind Kind,
+        string SourceText,
+        bool IsQuery,
+        string FilterKey = "");
+}

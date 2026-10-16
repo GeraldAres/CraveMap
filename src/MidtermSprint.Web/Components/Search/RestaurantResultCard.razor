@@ -1,0 +1,84 @@
+@using MidtermSprint.Application.Search
+
+<article class="rounded-[1.5rem] border border-[#eee4d8] bg-white p-5 shadow-sm transition hover:shadow-md sm:p-6">
+    <div class="flex items-start gap-4">
+        <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#fff0e8] text-2xl" aria-hidden="true">🍽️</span>
+        <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+                <h4 class="text-lg font-extrabold">@Match.Restaurant.Name</h4>
+                @if (IsUnverified)
+                {
+                    <span class="rounded-full bg-[#fff1d7] px-2.5 py-1 text-[0.7rem] font-extrabold text-[#765619]">Needs checking</span>
+                }
+                else
+                {
+                    <span class="rounded-full bg-[#eaf3e7] px-2.5 py-1 text-[0.7rem] font-extrabold text-leaf">Menu match</span>
+                }
+            </div>
+            <p class="mt-1 text-sm text-muted">@Match.BestMatchingMenuItem.Cuisine?.Name · @PriceRange</p>
+            <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-muted">
+                <span><span aria-hidden="true">📍</span> @Match.DistanceKm.ToString("0.0") km away</span>
+                @if (Match.Restaurant.Rating is { } rating)
+                {
+                    <span><span aria-hidden="true">★</span> @rating.ToString("0.0") demo rating</span>
+                }
+                @if (Match.Restaurant.SupportsDineIn)
+                {
+                    <span>Dine in</span>
+                }
+                @if (Match.Restaurant.SupportsTakeout)
+                {
+                    <span>Takeout</span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-5 rounded-2xl bg-[#fff8f1] p-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <p class="text-[0.68rem] font-extrabold uppercase tracking-[0.12em] text-muted">Best matching menu item</p>
+                <h5 class="mt-1 font-extrabold">@Match.BestMatchingMenuItem.Name</h5>
+            </div>
+            <span class="shrink-0 rounded-full bg-white px-3 py-1.5 text-sm font-extrabold text-tomato-dark">₱@Match.BestMatchingMenuItem.Price.ToString("0.##")</span>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Match.BestMatchingMenuItem.Description))
+        {
+            <p class="mt-2 text-sm leading-relaxed text-muted">@Match.BestMatchingMenuItem.Description</p>
+        }
+    </div>
+
+    <p class="mt-4 text-sm leading-relaxed text-muted">@Match.Explanation</p>
+    @if (Match.MatchedMenuItems.Count > 1)
+    {
+        <details class="mt-3">
+            <summary class="cursor-pointer text-sm font-bold text-tomato-dark hover:underline">
+                @($"{Match.MatchedMenuItems.Count - 1} more matching menu item{(Match.MatchedMenuItems.Count == 2 ? "" : "s")}")
+            </summary>
+            <ul class="mt-2 space-y-2 border-l-2 border-[#f0d2c6] pl-4">
+                @foreach (var item in Match.MatchedMenuItems.Where(item => item.Id != Match.BestMatchingMenuItem.Id).Take(5))
+                {
+                    <li class="flex flex-wrap justify-between gap-2 text-sm">
+                        <span class="font-semibold">@item.Name</span><span class="font-bold text-muted">₱@item.Price.ToString("0.##")</span>
+                    </li>
+                }
+            </ul>
+        </details>
+    }
+    @if (IsUnverified)
+    {
+        <p class="mt-4 rounded-xl border border-[#efd4ac] bg-[#fff8e9] p-3 text-xs font-semibold leading-relaxed text-[#654c20]">
+            Allergen details are unknown or may include cross-contact. This is not confirmed safe; ask the restaurant directly before ordering.
+        </p>
+    }
+</article>
+
+@code {
+    [Parameter, EditorRequired] public RestaurantMatch Match { get; set; } = default!;
+    [Parameter] public bool IsUnverified { get; set; }
+
+    private string PriceRange =>
+        Match.Restaurant.PriceRange is >= 1 and <= 4
+            ? string.Concat(Enumerable.Repeat("₱", Match.Restaurant.PriceRange))
+            : "Price varies";
+}
