@@ -4,6 +4,7 @@ using MidtermSprint.Infrastructure.Seeding;
 using MidtermSprint.Application.Search;
 using Microsoft.Extensions.Options;
 using System.Globalization;
+using MidtermSprint.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +27,11 @@ builder.Services.AddSingleton(serviceProvider =>
     serviceProvider.GetRequiredService<IOptions<SearchOptions>>().Value);
 builder.Services.AddSingleton<IQueryInterpreter, RuleBasedQueryInterpreter>();
 builder.Services.AddScoped<ISearchService, SearchService>();
+builder.Services.Configure<DiscoveryOptions>(builder.Configuration.GetSection("Discovery"));
+builder.Services.AddScoped(serviceProvider =>
+    serviceProvider.GetRequiredService<IOptions<DiscoveryOptions>>().Value);
+builder.Services.AddScoped<SearchStateService>();
+builder.Services.AddScoped<HomeDiscoveryService>();
 
 var app = builder.Build();
 Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "App_Data"));

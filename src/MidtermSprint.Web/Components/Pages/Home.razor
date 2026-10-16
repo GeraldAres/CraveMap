@@ -1,7 +1,297 @@
-﻿@page "/"
+@page "/"
+@implements IDisposable
+@inject DiscoveryOptions Discovery
+@inject HomeDiscoveryService HomeDiscovery
+@inject SearchStateService SearchState
+@inject NavigationManager Navigation
 
-<PageTitle>Home</PageTitle>
+<PageTitle>CraveMap — find your next bite</PageTitle>
+<HeadContent>
+    <meta name="description" content="Tell CraveMap what you’re craving and discover menu ideas nearby." />
+    <meta name="theme-color" content="#fffaf3" />
+</HeadContent>
 
-<h1>Hello, world!</h1>
+<section class="relative isolate overflow-hidden border-b border-[#f1e4d5] bg-[radial-gradient(ellipse_at_20%_0%,#ffe5d7_0%,#fffaf3_56%)]">
+    <div aria-hidden="true" class="pointer-events-none absolute -right-14 top-10 hidden size-72 rounded-full border-[28px] border-white/45 lg:block"></div>
+    <div aria-hidden="true" class="pointer-events-none absolute right-[10%] top-28 hidden size-5 rounded-full bg-honey lg:block"></div>
+    <div class="relative mx-auto grid max-w-7xl gap-10 px-4 pb-14 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.75fr)] lg:items-center lg:px-8 lg:py-20">
+        <div class="max-w-3xl">
+            <p class="inline-flex items-center gap-2 rounded-full border border-[#f0c7b8] bg-white/75 px-3.5 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-tomato-dark">
+                <span aria-hidden="true">✦</span> Your city, your next craving
+            </p>
+            <h1 class="mt-6 max-w-3xl text-4xl font-black leading-[1.08] tracking-[-0.045em] text-ink sm:text-5xl lg:text-6xl">
+                Your next favorite meal starts with a <span class="text-tomato-dark">craving.</span>
+            </h1>
+            <p class="mt-5 max-w-2xl text-base leading-7 text-muted sm:text-lg">
+                Tell us what sounds good. CraveMap turns the way you describe food into dishes and menus worth exploring nearby.
+            </p>
 
-Welcome to your new app.
+            <form class="mt-8 rounded-[1.75rem] border border-[#eadfd2] bg-white p-3 shadow-[0_18px_50px_rgb(87_57_37_/_10%)] sm:p-4"
+                  role="search"
+                  aria-label="Search for food"
+                  @onsubmit="SubmitSearch"
+                  @onsubmit:preventDefault="true">
+                <label for="craving-query" class="sr-only">Describe what you’re craving</label>
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <span class="hidden size-11 shrink-0 place-items-center rounded-2xl bg-[#fff0e8] text-xl sm:grid" aria-hidden="true">🍜</span>
+                    <input id="craving-query"
+                           @ref="_searchInput"
+                           class="min-h-12 min-w-0 flex-1 bg-transparent px-2 text-base font-semibold text-ink outline-none placeholder:font-normal placeholder:text-[#9b9287] sm:text-lg"
+                           type="search"
+                           autocomplete="off"
+                           maxlength="240"
+                           placeholder="Try “crispy chicken, a little spicy, under ₱300”"
+                           @bind="_query"
+                           @bind:event="oninput" />
+                    <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-tomato px-6 font-extrabold text-white shadow-sm transition hover:bg-tomato-dark focus-visible:outline-offset-4">
+                        <span>Find my food</span><span aria-hidden="true">→</span>
+                    </button>
+                </div>
+                <div class="mt-3 flex flex-col gap-3 border-t border-[#f1e8de] pt-3 sm:flex-row sm:items-center">
+                    <div class="flex flex-1 flex-wrap items-center gap-x-4 gap-y-2 px-1">
+                        <label for="home-radius" class="flex items-center gap-2 text-xs font-bold text-muted">
+                            <span aria-hidden="true">📍</span>
+                            <span>Within @_radiusKm.ToString("0.#") km</span>
+                        </label>
+                        <input id="home-radius" class="w-24 accent-tomato" type="range" min="1" max="20" step="1" @bind="_radiusKm" aria-label="Search radius in kilometers" />
+                        <label for="home-budget" class="sr-only">Maximum price in pesos</label>
+                        <span class="flex h-9 items-center gap-1 rounded-full bg-[#f8f3ec] px-3 text-xs font-bold text-muted">
+                            <span aria-hidden="true">₱</span>
+                            <input id="home-budget" class="w-20 bg-transparent text-xs font-bold text-ink outline-none placeholder:text-muted" type="number" min="0" step="25" placeholder="Any price" @bind="_budget" />
+                        </span>
+                    </div>
+                    <button type="button" class="min-h-10 self-start rounded-full px-3 text-xs font-extrabold text-tomato-dark hover:bg-[#fff0e8] sm:self-auto" aria-haspopup="dialog" @onclick="SearchState.OpenFilterDrawer">
+                        + More preferences
+                    </button>
+                </div>
+            </form>
+            <p class="mt-3 text-xs leading-relaxed text-muted">
+                Start with a craving or a dish. Search results use sample menu data, so confirm details with each restaurant.
+            </p>
+
+            <div class="mt-7">
+                <p class="mb-3 text-xs font-extrabold uppercase tracking-[0.12em] text-muted">Need a little inspiration?</p>
+                <div class="flex flex-wrap gap-2">
+                    @foreach (var suggestion in Discovery.SuggestedCravings)
+                    {
+                        <button type="button"
+                                class="rounded-full border border-[#e7ddd1] bg-white/80 px-3.5 py-2 text-sm font-semibold text-ink transition hover:-translate-y-0.5 hover:border-tomato/40 hover:bg-white"
+                                @onclick="() => RunCravingAsync(suggestion.Query)">
+                            <span aria-hidden="true">✦</span> @suggestion.Label
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <aside aria-label="CraveMap highlights" class="relative mx-auto w-full max-w-md lg:mr-0">
+            <div class="absolute -left-5 top-10 size-16 rounded-[1.4rem] bg-honey/90 rotate-[-12deg]" aria-hidden="true"></div>
+            <div class="absolute -right-4 bottom-8 size-20 rounded-full bg-[#dcebd9]" aria-hidden="true"></div>
+            <div class="relative rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_24px_70px_rgb(87_57_37_/_16%)] sm:p-7">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-extrabold uppercase tracking-[0.14em] text-tomato-dark">Your craving, decoded</p>
+                        <h2 class="mt-1 text-xl font-extrabold tracking-tight">A better way to browse</h2>
+                    </div>
+                    <span class="grid size-12 place-items-center rounded-2xl bg-[#fff0e8] text-2xl" aria-hidden="true">🥢</span>
+                </div>
+                <div class="mt-6 space-y-3">
+                    <div class="flex items-center gap-3 rounded-2xl bg-[#fff8f1] p-3.5">
+                        <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-[#ffe3d6] text-lg" aria-hidden="true">💭</span>
+                        <div><p class="text-xs font-semibold text-muted">You say</p><p class="mt-0.5 font-extrabold">“Crunchy, savory, a little spicy”</p></div>
+                    </div>
+                    <div class="ml-8 h-5 border-l-2 border-dashed border-[#e5b8a5]" aria-hidden="true"></div>
+                    <div class="flex items-center gap-3 rounded-2xl bg-[#f0f6ed] p-3.5">
+                        <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-[#dcebd9] text-lg" aria-hidden="true">🍗</span>
+                        <div><p class="text-xs font-semibold text-muted">We look for</p><p class="mt-0.5 font-extrabold">Menu matches near your area</p></div>
+                    </div>
+                    <div class="ml-8 h-5 border-l-2 border-dashed border-[#e5b8a5]" aria-hidden="true"></div>
+                    <div class="flex items-center gap-3 rounded-2xl bg-[#f7f1fa] p-3.5">
+                        <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-[#e9dcf0] text-lg" aria-hidden="true">🗺️</span>
+                        <div><p class="text-xs font-semibold text-muted">You discover</p><p class="mt-0.5 font-extrabold">Your next “that hit the spot”</p></div>
+                    </div>
+                </div>
+                <p class="mt-5 rounded-xl border border-[#f0d2c6] bg-[#fff4ef] px-3 py-2.5 text-xs leading-relaxed text-[#794237]">
+                    Sample listings are for demonstration only. CraveMap is not a substitute for confirming allergens or ingredients.
+                </p>
+            </div>
+        </aside>
+    </div>
+</section>
+
+<section aria-labelledby="niches-heading" class="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+            <p class="text-xs font-extrabold uppercase tracking-[0.16em] text-tomato-dark">Follow the flavor</p>
+            <h2 id="niches-heading" class="mt-2 text-2xl font-black tracking-tight sm:text-3xl">What sounds good today?</h2>
+            <p class="mt-2 max-w-2xl text-sm leading-relaxed text-muted">Pick a starting point and we’ll find sample menu matches for that mood.</p>
+        </div>
+        <NavLink href="/explore" class="inline-flex min-h-11 items-center gap-2 self-start font-extrabold text-tomato-dark hover:underline sm:self-auto">
+            Explore all food <span aria-hidden="true">→</span>
+        </NavLink>
+    </div>
+
+    <div class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        @foreach (var niche in Discovery.FoodNiches)
+        {
+            <button type="button"
+                    class="niche-card--@niche.Theme group min-h-44 rounded-[1.5rem] border border-white/80 p-5 text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-md focus-visible:outline-offset-4"
+                    @onclick="() => RunNicheAsync(niche)">
+                <span class="grid size-12 place-items-center rounded-2xl bg-white/80 text-2xl shadow-sm" aria-hidden="true">@niche.Emoji</span>
+                <span class="mt-5 block text-lg font-extrabold">@niche.Name <span class="inline-block transition group-hover:translate-x-1" aria-hidden="true">→</span></span>
+                <span class="mt-1 block text-sm leading-relaxed text-muted">@niche.Description</span>
+            </button>
+        }
+    </div>
+</section>
+
+<section aria-labelledby="nearby-heading" class="border-y border-[#eee4d8] bg-[#fff7ed]">
+    <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <p class="text-xs font-extrabold uppercase tracking-[0.16em] text-tomato-dark">A taste of what’s nearby</p>
+                <h2 id="nearby-heading" class="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Sample menus around you</h2>
+                <p class="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+                    A few fictional demo listings near <strong class="text-ink">@_selectedLocation.Name</strong>. Choose another sample area to browse.
+                </p>
+            </div>
+            <button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 self-start rounded-full border border-[#e7ddd1] bg-white px-5 text-sm font-extrabold text-ink hover:border-tomato/50 sm:self-auto" @onclick="BrowseSelectedArea">
+                Browse this area <span aria-hidden="true">→</span>
+            </button>
+        </div>
+
+        @if (_nearby.Count == 0)
+        {
+            <div class="mt-7 rounded-2xl border border-dashed border-[#dacbbb] bg-white/75 p-8 text-center">
+                <p class="text-lg font-extrabold">No demo menus in this sample area yet</p>
+                <p class="mt-2 text-sm text-muted">Try another demo area or explore all sample listings.</p>
+                <button type="button" class="mt-4 font-extrabold text-tomato-dark hover:underline" @onclick="BrowseSelectedArea">Explore sample listings</button>
+            </div>
+        }
+        else
+        {
+            <div class="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                @foreach (var listing in _nearby)
+                {
+                    <NavLink href="@($"/restaurants/{Uri.EscapeDataString(listing.Slug)}")"
+                             class="group rounded-[1.5rem] border border-[#eee4d8] bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+                        <div class="flex items-start justify-between gap-4">
+                            <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#fff0e8] text-2xl" aria-hidden="true">🍽️</span>
+                            <span class="rounded-full bg-[#f0f6ed] px-3 py-1.5 text-xs font-bold text-leaf">@listing.DistanceKm.ToString("0.0") km away</span>
+                        </div>
+                        <h3 class="mt-4 text-lg font-extrabold group-hover:text-tomato-dark">@listing.Name</h3>
+                        <p class="mt-1 text-sm text-muted">@listing.Cuisine · @FormatPriceRange(listing.PriceRange)</p>
+                        <div class="mt-4 rounded-xl bg-[#fff8f1] p-3">
+                            <p class="text-[0.68rem] font-extrabold uppercase tracking-[0.12em] text-muted">Sample menu idea</p>
+                            @if (listing.MenuItemName is not null && listing.Price.HasValue)
+                            {
+                                <p class="mt-1 flex items-center justify-between gap-3 font-bold">
+                                    <span>@listing.MenuItemName</span><span class="shrink-0 text-tomato-dark">₱@listing.Price.Value.ToString("0.##")</span>
+                                </p>
+                            }
+                            else
+                            {
+                                <p class="mt-1 text-sm font-semibold text-muted">Menu details coming soon</p>
+                            }
+                        </div>
+                        <span class="mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-tomato-dark">View sample listing <span aria-hidden="true">→</span></span>
+                    </NavLink>
+                }
+            </div>
+        }
+        <p class="mt-5 text-xs leading-relaxed text-muted">
+            These listings, menu items, distances and prices are fictional examples. Verify current details directly with the restaurant.
+        </p>
+    </div>
+</section>
+
+<section class="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+    <div class="flex flex-col items-start gap-6 rounded-[2rem] bg-ink px-6 py-8 text-white sm:flex-row sm:items-center sm:justify-between sm:px-9 sm:py-10">
+        <div class="max-w-2xl">
+            <p class="text-xs font-extrabold uppercase tracking-[0.16em] text-[#ffc2ae]">Good food, less guesswork</p>
+            <h2 class="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Ready to follow that craving?</h2>
+            <p class="mt-2 text-sm leading-relaxed text-white/75">Describe a dish, a flavor, or a whole mood. See what the sample menus have to offer.</p>
+        </div>
+        <button type="button" class="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-full bg-white px-6 font-extrabold text-ink transition hover:bg-[#fff0e8]" @onclick="FocusSearch">
+            Start exploring <span aria-hidden="true">→</span>
+        </button>
+    </div>
+</section>
+
+@code {
+    private string _query = string.Empty;
+    private string _budget = string.Empty;
+    private double _radiusKm = 5;
+    private SupportedLocation _selectedLocation = new();
+    private IReadOnlyList<NearbyDiscovery> _nearby = [];
+    private ElementReference _searchInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _selectedLocation = SearchState.SelectedLocation
+            ?? Discovery.SupportedLocations.FirstOrDefault()
+            ?? new SupportedLocation { Name = "Makati demo center", Latitude = 14.5547, Longitude = 121.0244 };
+        SearchState.Changed += OnSearchStateChanged;
+        SearchState.SetSelectedLocation(_selectedLocation);
+        await LoadNearbyAsync();
+    }
+
+    private void OnSearchStateChanged()
+    {
+        if (SearchState.SelectedLocation is { } location
+            && !string.Equals(location.Name, _selectedLocation.Name, StringComparison.Ordinal))
+        {
+            _ = InvokeAsync(async () =>
+            {
+                _selectedLocation = location;
+                await LoadNearbyAsync();
+                StateHasChanged();
+            });
+        }
+    }
+
+    private async Task LoadNearbyAsync() =>
+        _nearby = await HomeDiscovery.GetNearbyAsync(_selectedLocation);
+
+    private async Task SubmitSearch()
+    {
+        SearchState.SetQuery(_query.Trim());
+        var filters = SearchState.Filters with
+        {
+            MaxPrice = ParseBudget(_budget),
+            PriceIsStrict = true,
+            RadiusKm = _radiusKm,
+            OriginLatitude = _selectedLocation.Latitude,
+            OriginLongitude = _selectedLocation.Longitude
+        };
+        SearchState.SetFilters(filters);
+        Navigation.NavigateTo(SearchUrlBuilder.BuildExploreUri(_query.Trim(), filters, _selectedLocation));
+    }
+
+    private void RunCravingAsync(string query)
+    {
+        _query = query;
+        SearchState.SetQuery(query);
+        Navigation.NavigateTo(SearchUrlBuilder.BuildExploreUri(query, SearchState.Filters, _selectedLocation));
+    }
+
+    private void RunNicheAsync(FoodNicheCard niche)
+    {
+        _query = niche.Query;
+        SearchState.SetQuery(niche.Query);
+        Navigation.NavigateTo(SearchUrlBuilder.BuildExploreUri(niche.Query, SearchState.Filters, _selectedLocation, niche.Name));
+    }
+
+    private void BrowseSelectedArea() =>
+        Navigation.NavigateTo(SearchUrlBuilder.BuildExploreUri(string.Empty, SearchState.Filters, _selectedLocation));
+
+    private async Task FocusSearch() => await _searchInput.FocusAsync();
+
+    private static decimal? ParseBudget(string value) =>
+        decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var result) ? result : null;
+
+    private static string FormatPriceRange(int priceRange) =>
+        priceRange is >= 1 and <= 4 ? string.Concat(Enumerable.Repeat("₱", priceRange)) : "Price varies";
+
+    public void Dispose() => SearchState.Changed -= OnSearchStateChanged;
+}

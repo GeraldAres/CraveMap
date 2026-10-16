@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\src\MidtermSprint.Application\MidtermSprint.Application.csproj" />
     <ProjectReference Include="..\..\src\MidtermSprint.Domain\MidtermSprint.Domain.csproj" />
     <ProjectReference Include="..\..\src\MidtermSprint.Infrastructure\MidtermSprint.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\MidtermSprint.Web\MidtermSprint.Web.csproj" />
   </ItemGroup>
 
 </Project>

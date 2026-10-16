@@ -70,6 +70,7 @@ public sealed class RestaurantRepository(IDbContextFactory<CraveMapDbContext> co
     private static IQueryable<Restaurant> PublishedQuery(CraveMapDbContext context) =>
         context.Restaurants
             .AsNoTracking()
+            .AsSplitQuery()
             .Where(restaurant => restaurant.IsPublished)
             .Include(restaurant => restaurant.Hours)
             .Include(restaurant => restaurant.MenuItems)

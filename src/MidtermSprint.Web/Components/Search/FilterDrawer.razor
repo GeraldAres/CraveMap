@@ -1,0 +1,293 @@
+@if (Open)
+{
+    <div class="fixed inset-0 z-50 flex justify-end" @onkeydown="HandleKeydown">
+        <button type="button"
+                class="absolute inset-0 cursor-default bg-ink/45"
+                aria-label="Close food preferences"
+                @onclick="Close"></button>
+        <section class="relative flex h-full w-full max-w-xl flex-col border-l border-[#eee4d8] bg-cream shadow-2xl"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="filter-drawer-title"
+                 tabindex="-1">
+            <header class="flex items-start justify-between gap-4 border-b border-[#eee4d8] px-5 py-5 sm:px-7">
+                <div>
+                    <p class="text-xs font-extrabold uppercase tracking-[0.18em] text-tomato-dark">Make it yours</p>
+                    <h2 id="filter-drawer-title" class="mt-1 text-2xl font-extrabold tracking-tight">Food preferences</h2>
+                    <p class="mt-1 text-sm text-muted">Choose what matters. You can change these any time.</p>
+                </div>
+                <button @ref="_closeButton" type="button" class="grid size-11 shrink-0 place-items-center rounded-full border border-[#e7ddd1] bg-white text-xl hover:bg-peach" aria-label="Close food preferences" @onclick="Close">×</button>
+            </header>
+
+            <div class="flex-1 space-y-7 overflow-y-auto px-5 py-6 sm:px-7">
+                <section aria-labelledby="flavor-heading">
+                    <h3 id="flavor-heading" class="mb-3 font-extrabold">Flavor</h3>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var item in Flavors)
+                        {
+                            <button type="button" class="@ChoiceClass(_flavors, item)" aria-pressed="@(_flavors.Contains(item) ? "true" : "false")" @onclick="() => Toggle(_flavors, item)">@item</button>
+                        }
+                    </div>
+                </section>
+
+                <section aria-labelledby="texture-heading">
+                    <h3 id="texture-heading" class="mb-3 font-extrabold">Texture & preparation</h3>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var item in Textures)
+                        {
+                            <button type="button" class="@ChoiceClass(_textures, item)" aria-pressed="@(_textures.Contains(item) ? "true" : "false")" @onclick="() => Toggle(_textures, item)">@item</button>
+                        }
+                    </div>
+                    <p class="mb-2 mt-4 text-xs font-bold text-muted">Preparation & other</p>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var item in Preparations)
+                        {
+                            <button type="button" class="@ChoiceClass(_otherCharacteristics, item)" aria-pressed="@(_otherCharacteristics.Contains(item) ? "true" : "false")" @onclick="() => Toggle(_otherCharacteristics, item)">@item</button>
+                        }
+                    </div>
+                </section>
+
+                <section aria-labelledby="cuisine-heading">
+                    <h3 id="cuisine-heading" class="mb-3 font-extrabold">Cuisine & food niches</h3>
+                    <p class="mb-2 text-xs font-bold text-muted">Cuisine</p>
+                    <div class="mb-4 flex flex-wrap gap-2">
+                        @foreach (var item in Cuisines)
+                        {
+                            <button type="button" class="@ChoiceClass(_cuisines, item)" aria-pressed="@(_cuisines.Contains(item) ? "true" : "false")" @onclick="() => Toggle(_cuisines, item)">@item</button>
+                        }
+                    </div>
+                    <p class="mb-2 text-xs font-bold text-muted">Food niche</p>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var item in Niches)
+                        {
+                            <button type="button" class="@ChoiceClass(_niches, item)" aria-pressed="@(_niches.Contains(item) ? "true" : "false")" @onclick="() => Toggle(_niches, item)">@item</button>
+                        }
+                    </div>
+                </section>
+
+                <section aria-labelledby="dietary-heading">
+                    <h3 id="dietary-heading" class="mb-3 font-extrabold">Dietary preferences</h3>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var item in DietaryPreferences)
+                        {
+                            <button type="button" class="@ChoiceClass(_dietary, item)" aria-pressed="@_dietary.Contains(item)" @onclick="() => Toggle(_dietary, item)">@item</button>
+                        }
+                    </div>
+                </section>
+
+                <section aria-labelledby="allergen-heading" class="rounded-2xl border border-[#f0d2c6] bg-[#fff4ef] p-4">
+                    <h3 id="allergen-heading" class="font-extrabold">Allergens to avoid</h3>
+                    <p class="mb-3 mt-1 text-xs leading-relaxed text-muted">
+                        Demo information is not a safety guarantee. Confirm ingredients and cross-contact with the restaurant.
+                    </p>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach (var item in Allergens)
+                        {
+                            <button type="button"
+                                    class="@ChoiceClass(_allergens, item)"
+                                    aria-pressed="@(_allergens.Contains(item) ? "true" : "false")"
+                                    @onclick="() => Toggle(_allergens, item)">
+                                <span aria-hidden="true">@( _allergens.Contains(item) ? "✓ " : "＋ " )</span>@item
+                            </button>
+                        }
+                    </div>
+                    <label class="mt-4 flex cursor-pointer items-start gap-3 rounded-xl bg-white p-3 text-sm">
+                        <input type="checkbox" class="mt-1 size-4 accent-tomato" @bind="_strictAllergenMode" />
+                        <span><strong class="block">Strict allergen mode</strong><span class="mt-0.5 block text-xs text-muted">Hide menu items with unknown or cross-contact information.</span></span>
+                    </label>
+                </section>
+
+                <section aria-labelledby="budget-heading" class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                        <label id="budget-heading" for="filter-max-price" class="mb-2 block font-extrabold">Maximum menu price</label>
+                        <div class="flex items-center gap-2 rounded-xl border border-[#e7ddd1] bg-white px-3">
+                            <span aria-hidden="true" class="font-bold text-muted">₱</span>
+                            <input id="filter-max-price" class="min-h-12 w-full bg-transparent outline-none" type="number" min="0" step="25" placeholder="Any budget" @bind="_maxPrice" />
+                        </div>
+                        <label class="mt-2 flex items-center gap-2 text-xs text-muted">
+                            <input type="checkbox" class="size-4 accent-tomato" @bind="_priceIsStrict" />
+                            Keep results within budget
+                        </label>
+                    </div>
+                    <div>
+                        <label for="filter-radius" class="mb-2 block font-extrabold">Search radius <span class="font-semibold text-muted">(@_radiusKm.ToString("0.#") km)</span></label>
+                        <input id="filter-radius" class="mt-3 w-full accent-tomato" type="range" min="1" max="20" step="1" @bind="_radiusKm" />
+                        <div class="mt-1 flex justify-between text-xs text-muted"><span>1 km</span><span>20 km</span></div>
+                    </div>
+                </section>
+
+                <section aria-labelledby="more-heading">
+                    <h3 id="more-heading" class="mb-3 font-extrabold">More filters</h3>
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <label class="flex min-h-12 items-center gap-3 rounded-xl border border-[#e7ddd1] bg-white px-3 text-sm font-semibold">
+                            <input type="checkbox" class="size-4 accent-tomato" @bind="_openNow" />
+                            Open now
+                        </label>
+                        <label class="flex min-h-12 items-center gap-3 rounded-xl border border-[#e7ddd1] bg-white px-3 text-sm font-semibold">
+                            Minimum rating
+                            <select class="ml-auto bg-transparent font-bold" @bind="_minimumRating">
+                                <option value="">Any</option>
+                                <option value="3">3+ stars</option>
+                                <option value="4">4+ stars</option>
+                                <option value="4.5">4.5+ stars</option>
+                            </select>
+                        </label>
+                        <label class="flex min-h-12 items-center gap-3 rounded-xl border border-[#e7ddd1] bg-white px-3 text-sm font-semibold sm:col-span-2">
+                            Service
+                            <select class="ml-auto bg-transparent font-bold" @bind="_serviceType">
+                                <option value="@nameof(ServiceType.Any)">Dine in or takeout</option>
+                                <option value="@nameof(ServiceType.DineIn)">Dine in</option>
+                                <option value="@nameof(ServiceType.Takeout)">Takeout</option>
+                            </select>
+                        </label>
+                    </div>
+                </section>
+            </div>
+
+            <footer class="flex items-center gap-3 border-t border-[#eee4d8] bg-white/90 px-5 py-4 sm:px-7">
+                <button type="button" class="min-h-12 rounded-full px-5 text-sm font-bold text-muted hover:bg-[#f6f0e8]" @onclick="Reset">Clear all</button>
+                <button type="button" class="min-h-12 flex-1 rounded-full bg-tomato px-6 text-sm font-extrabold text-white shadow-sm hover:bg-tomato-dark" @onclick="Apply">Apply preferences</button>
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public ManualSearchFilters InitialFilters { get; set; } = new();
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<ManualSearchFilters> OnApply { get; set; }
+
+    private static readonly string[] Flavors = ["Savory", "Sweet", "Spicy", "Sour", "Bitter", "Umami"];
+    private static readonly string[] Textures = ["Crispy", "Crunchy", "Creamy", "Chewy", "Tender"];
+    private static readonly string[] Preparations = ["Fried", "Grilled", "Baked", "Fresh"];
+    private static readonly string[] Cuisines = ["Filipino", "Korean", "Japanese", "Chinese", "American", "Italian", "Thai"];
+    private static readonly string[] Niches = ["Street food", "Seafood", "Dessert", "Coffee"];
+    private static readonly string[] DietaryPreferences = ["Vegetarian", "Vegan", "Halal"];
+    private static readonly string[] Allergens = ["Peanuts", "Tree nuts", "Dairy", "Eggs", "Soy", "Wheat", "Crustaceans", "Molluscs", "Fish", "Sesame"];
+
+    private readonly HashSet<string> _flavors = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _textures = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _otherCharacteristics = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _cuisines = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _niches = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _dietary = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _allergens = new(StringComparer.OrdinalIgnoreCase);
+    private string _maxPrice = string.Empty;
+    private string _minimumRating = string.Empty;
+    private string _serviceType = nameof(ServiceType.Any);
+    private double _radiusKm = 5;
+    private bool _strictAllergenMode = true;
+    private bool _priceIsStrict = true;
+    private bool _openNow;
+    private bool _wasOpen;
+    private bool _hasFocusedCloseButton;
+    private ElementReference _closeButton;
+
+    protected override void OnParametersSet()
+    {
+        if (Open && !_wasOpen)
+        {
+            Load(InitialFilters);
+            _hasFocusedCloseButton = false;
+        }
+
+        _wasOpen = Open;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Open && !_hasFocusedCloseButton)
+        {
+            _hasFocusedCloseButton = true;
+            await _closeButton.FocusAsync();
+        }
+    }
+
+    private void Load(ManualSearchFilters filters)
+    {
+        Replace(_flavors, filters.Flavors);
+        Replace(_textures, filters.Textures);
+        Replace(_otherCharacteristics, filters.OtherCharacteristics);
+        Replace(_cuisines, filters.Cuisines);
+        Replace(_niches, filters.Niches);
+        Replace(_dietary, filters.DietaryPreferences);
+        Replace(_allergens, filters.AllergensToAvoid);
+        _maxPrice = filters.MaxPrice?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        _minimumRating = filters.MinRating?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        _serviceType = filters.ServiceType?.ToString() ?? nameof(ServiceType.Any);
+        _radiusKm = filters.RadiusKm ?? 5;
+        _strictAllergenMode = filters.StrictAllergenMode ?? true;
+        _priceIsStrict = filters.PriceIsStrict ?? true;
+        _openNow = filters.OpenNow ?? false;
+    }
+
+    private static void Replace(HashSet<string> target, IEnumerable<string> values)
+    {
+        target.Clear();
+        target.UnionWith(values);
+    }
+
+    private static string ChoiceClass(HashSet<string> selected, string value) =>
+        selected.Contains(value)
+            ? "rounded-full border border-tomato bg-tomato px-3.5 py-2 text-sm font-bold text-white"
+            : "rounded-full border border-[#e7ddd1] bg-white px-3.5 py-2 text-sm font-semibold text-ink hover:border-tomato/50";
+
+    private static void Toggle(HashSet<string> values, string value)
+    {
+        if (!values.Add(value))
+        {
+            values.Remove(value);
+        }
+    }
+
+    private static decimal? ParseDecimal(string value) =>
+        decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var result) ? result : null;
+
+    private static decimal? ParseRating(string value) => ParseDecimal(value);
+
+    private async Task Apply()
+    {
+        Enum.TryParse<ServiceType>(_serviceType, out var serviceType);
+        await OnApply.InvokeAsync(new ManualSearchFilters
+        {
+            Flavors = new HashSet<string>(_flavors, StringComparer.OrdinalIgnoreCase),
+            Textures = new HashSet<string>(_textures, StringComparer.OrdinalIgnoreCase),
+            OtherCharacteristics = new HashSet<string>(_otherCharacteristics, StringComparer.OrdinalIgnoreCase),
+            Cuisines = new HashSet<string>(_cuisines, StringComparer.OrdinalIgnoreCase),
+            Niches = new HashSet<string>(_niches, StringComparer.OrdinalIgnoreCase),
+            DietaryPreferences = new HashSet<string>(_dietary, StringComparer.OrdinalIgnoreCase),
+            AllergensToAvoid = new HashSet<string>(_allergens, StringComparer.OrdinalIgnoreCase),
+            MaxPrice = ParseDecimal(_maxPrice),
+            PriceIsStrict = _priceIsStrict,
+            RadiusKm = _radiusKm,
+            MinRating = ParseRating(_minimumRating),
+            OpenNow = _openNow,
+            ServiceType = serviceType,
+            StrictAllergenMode = _strictAllergenMode
+        });
+    }
+
+    private void Reset()
+    {
+        _flavors.Clear();
+        _textures.Clear();
+        _otherCharacteristics.Clear();
+        _cuisines.Clear();
+        _niches.Clear();
+        _dietary.Clear();
+        _allergens.Clear();
+        _maxPrice = string.Empty;
+        _minimumRating = string.Empty;
+        _serviceType = nameof(ServiceType.Any);
+        _radiusKm = 5;
+        _strictAllergenMode = true;
+        _priceIsStrict = true;
+        _openNow = false;
+    }
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    private Task HandleKeydown(KeyboardEventArgs args) =>
+        string.Equals(args.Key, "Escape", StringComparison.Ordinal) ? Close() : Task.CompletedTask;
+}

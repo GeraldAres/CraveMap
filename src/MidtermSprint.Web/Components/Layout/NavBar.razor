@@ -1,0 +1,122 @@
+@implements IDisposable
+@inject SearchStateService SearchState
+@inject NavigationManager Navigation
+@inject DiscoveryOptions Discovery
+
+<header class="sticky top-0 z-40 border-b border-[#eee4d8] bg-cream/95 backdrop-blur">
+    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+        <NavLink href="/" Match="NavLinkMatch.All" class="flex items-center gap-2.5" aria-label="CraveMap home">
+            <span class="grid size-10 place-items-center rounded-2xl bg-tomato text-xl text-white" aria-hidden="true">🍅</span>
+            <span>
+                <span class="block text-lg font-extrabold leading-tight tracking-tight">CraveMap</span>
+                <span class="hidden text-[0.68rem] font-medium tracking-wide text-muted sm:block">FIND YOUR NEXT BITE</span>
+            </span>
+        </NavLink>
+
+        <button type="button"
+                class="inline-flex size-11 items-center justify-center rounded-xl border border-[#e7ddd1] text-ink hover:bg-white focus-visible:outline-offset-2 md:hidden"
+                aria-label="@(_menuOpen ? "Close navigation menu" : "Open navigation menu")"
+                aria-expanded="@(_menuOpen ? "true" : "false")"
+                @onclick="ToggleMenu">
+            <span aria-hidden="true" class="text-xl">@(_menuOpen ? "×" : "☰")</span>
+        </button>
+
+        <nav aria-label="Main navigation"
+             class="@(_menuOpen ? "flex" : "hidden") order-3 w-full flex-col gap-2 border-t border-[#eee4d8] pt-3 md:order-none md:flex md:w-auto md:flex-row md:items-center md:border-0 md:pt-0">
+            <NavLink href="/explore" class="@NavLinkClass" @onclick="CloseMenu">Explore</NavLink>
+            <button type="button"
+                    class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-bold text-ink hover:bg-white"
+                    aria-haspopup="dialog"
+                    @onclick="OpenFilters">
+                Food preferences
+                @if (FilterCount > 0)
+                {
+                    <span class="grid size-5 place-items-center rounded-full bg-tomato text-xs text-white">@FilterCount</span>
+                }
+            </button>
+            <NavLink href="/saved" class="@NavLinkClass" @onclick="CloseMenu">Saved</NavLink>
+        </nav>
+
+        <label class="order-2 flex min-h-11 items-center gap-2 rounded-full border border-[#e7ddd1] bg-white px-3 text-xs font-semibold text-muted md:order-none">
+            <span aria-hidden="true">📍</span>
+            <span class="sr-only">Choose a demo area</span>
+            <select class="max-w-40 bg-transparent text-xs font-bold text-ink outline-none sm:max-w-none"
+                    aria-label="Choose a demo area"
+                    value="@SelectedLocationName"
+                    @onchange="ChangeLocation">
+                @foreach (var location in Discovery.SupportedLocations)
+                {
+                    <option value="@location.Name">@location.Name</option>
+                }
+            </select>
+        </label>
+    </div>
+</header>
+
+<FilterDrawer Open="@SearchState.IsFilterDrawerOpen"
+              InitialFilters="@SearchState.Filters"
+              OnClose="CloseFilters"
+              OnApply="ApplyFilters" />
+
+@code {
+    private bool _menuOpen;
+
+    private string SelectedLocationName => SearchState.SelectedLocation?.Name
+        ?? Discovery.SupportedLocations.FirstOrDefault()?.Name
+        ?? string.Empty;
+
+    private int FilterCount =>
+        SearchState.Filters.Flavors.Count
+        + SearchState.Filters.Textures.Count
+        + SearchState.Filters.OtherCharacteristics.Count
+        + SearchState.Filters.Cuisines.Count
+        + SearchState.Filters.Niches.Count
+        + SearchState.Filters.DietaryPreferences.Count
+        + SearchState.Filters.AllergensToAvoid.Count
+        + (SearchState.Filters.MaxPrice.HasValue ? 1 : 0)
+        + (SearchState.Filters.RadiusKm.HasValue ? 1 : 0)
+        + (SearchState.Filters.OpenNow == true ? 1 : 0)
+        + (SearchState.Filters.MinRating.HasValue ? 1 : 0)
+        + (SearchState.Filters.ServiceType.HasValue && SearchState.Filters.ServiceType != ServiceType.Any ? 1 : 0);
+
+    private const string NavLinkClass =
+        "inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-bold text-ink hover:bg-white";
+
+    protected override void OnInitialized()
+    {
+        SearchState.Changed += OnSearchStateChanged;
+        if (SearchState.SelectedLocation is null && Discovery.SupportedLocations.FirstOrDefault() is { } first)
+        {
+            SearchState.SetSelectedLocation(first);
+        }
+    }
+
+    private void OnSearchStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void ToggleMenu() => _menuOpen = !_menuOpen;
+    private void CloseMenu() => _menuOpen = false;
+    private void OpenFilters() => SearchState.OpenFilterDrawer();
+    private void CloseFilters() => SearchState.CloseFilterDrawer();
+
+    private void ChangeLocation(ChangeEventArgs args)
+    {
+        var selection = Discovery.SupportedLocations.FirstOrDefault(location =>
+            string.Equals(location.Name, args.Value?.ToString(), StringComparison.Ordinal));
+        if (selection is not null)
+        {
+            SearchState.SetSelectedLocation(selection);
+        }
+    }
+
+    private void ApplyFilters(ManualSearchFilters filters)
+    {
+        SearchState.SetFilters(filters);
+        SearchState.CloseFilterDrawer();
+        Navigation.NavigateTo(SearchUrlBuilder.BuildExploreUri(
+            SearchState.Query,
+            filters,
+            SearchState.SelectedLocation));
+    }
+
+    public void Dispose() => SearchState.Changed -= OnSearchStateChanged;
+}
