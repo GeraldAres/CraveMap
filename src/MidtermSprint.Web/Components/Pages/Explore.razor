@@ -1,11 +1,12 @@
 @page "/explore"
-@implements IDisposable
+@implements IAsyncDisposable
 @inject ISearchService SearchService
 @inject IQueryInterpreter QueryInterpreter
 @inject SearchStateService SearchState
 @inject NavigationManager Navigation
 @inject DiscoveryOptions Discovery
 @inject ILogger<Explore> Logger
+@inject IJSRuntime JS
 
 <PageTitle>@(_query.Length == 0 ? "Explore food" : $"Explore “{_query}”") — CraveMap</PageTitle>
 <HeadContent>
@@ -81,6 +82,18 @@
                     <span class="grid size-5 place-items-center rounded-full bg-tomato text-xs text-white">@_manualFilterCount</span>
                 }
             </button>
+            <button type="button"
+                    class="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#e7ddd1] bg-white px-4 text-sm font-bold hover:border-tomato/50"
+                    @onclick="GetCurrentLocationAsync"
+                    disabled="@_isGettingLocation">
+                <span aria-hidden="true">◎</span>
+                @(_isGettingLocation ? "Getting location…" : "Use my location")
+            </button>
+            <button type="button"
+                    class="inline-flex min-h-11 items-center gap-2 rounded-full border border-[#e7ddd1] bg-white px-4 text-sm font-bold hover:border-tomato/50"
+                    @onclick="OpenLocationPicker">
+                <span aria-hidden="true">⌖</span> Choose on map
+            </button>
             <label class="flex min-h-11 items-center gap-2 rounded-full border border-[#e7ddd1] bg-white px-4 text-sm font-semibold">
                 <span class="text-muted">Sort</span>
                 <select class="max-w-40 bg-transparent font-extrabold outline-none" aria-label="Sort menu matches" value="@SortValue" @onchange="ChangeSort">
@@ -92,6 +105,43 @@
             </label>
         </div>
     </div>
+
+    @if (_locationMessage is not null)
+    {
+        <p class="mb-5 rounded-xl border border-[#edc5b6] bg-white px-4 py-3 text-sm leading-relaxed text-muted" role="status">@_locationMessage</p>
+    }
+
+    @if (_result is { TotalCount: > 0 })
+    {
+        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <p class="text-xs leading-relaxed text-muted">Map tiles by OpenStreetMap. Menu listings and coordinates are fictional demo data.</p>
+            <div class="inline-flex rounded-full border border-[#e7ddd1] bg-white p-1" role="group" aria-label="Choose results layout">
+                <button type="button"
+                        class="@(_showMap ? "rounded-full px-4 py-2 text-sm font-bold text-muted hover:bg-[#f8f3ec]" : "rounded-full bg-ink px-4 py-2 text-sm font-bold text-white")"
+                        aria-pressed="@(!_showMap ? "true" : "false")"
+                        @onclick="() => SetMapVisibility(false)">
+                    List
+                </button>
+                <button type="button"
+                        class="@(_showMap ? "rounded-full bg-ink px-4 py-2 text-sm font-bold text-white" : "rounded-full px-4 py-2 text-sm font-bold text-muted hover:bg-[#f8f3ec]")"
+                        aria-pressed="@(_showMap ? "true" : "false")"
+                        @onclick="() => SetMapVisibility(true)">
+                    Map & list
+                </button>
+            </div>
+        </div>
+        @if (_showMap)
+        {
+            <section class="mb-7 overflow-hidden rounded-[1.5rem] border border-[#e7ddd1] bg-white shadow-sm" aria-label="Interactive map and restaurant matches">
+                <LeafletMap @key="_mapInstanceKey"
+                            Markers="@MapMarkers"
+                            Center="@MapCenter"
+                            SelectedMarkerId="@_selectedRestaurantId"
+                            FitMarkers="@(!_selectedRestaurantId.HasValue)"
+                            OnMarkerSelected="SelectRestaurantAsync" />
+            </section>
+        }
+    }
 
     @if (_isLoading)
     {
@@ -156,7 +206,10 @@
                 <div class="grid gap-4 lg:grid-cols-2">
                     @foreach (var match in _result.Verified)
                     {
-                        <RestaurantResultCard Match="match" IsUnverified="false" />
+                        <RestaurantResultCard Match="match"
+                                              IsUnverified="false"
+                                              IsSelected="@(match.Restaurant.Id == _selectedRestaurantId)"
+                                              OnShowOnMap="SelectRestaurantAsync" />
                     }
                 </div>
             </section>
@@ -174,7 +227,10 @@
                 <div class="grid gap-4 lg:grid-cols-2">
                     @foreach (var match in _result.Unverified)
                     {
-                        <RestaurantResultCard Match="match" IsUnverified="true" />
+                        <RestaurantResultCard Match="match"
+                                              IsUnverified="true"
+                                              IsSelected="@(match.Restaurant.Id == _selectedRestaurantId)"
+                                              OnShowOnMap="SelectRestaurantAsync" />
                     }
                 </div>
             </section>
@@ -185,20 +241,97 @@
     }
 </section>
 
+@if (_isLocationPickerOpen)
+{
+    <div class="fixed inset-0 z-[1100] flex items-center justify-center bg-ink/55 p-3 sm:p-6"
+         @onkeydown="HandleLocationPickerKeydown">
+        <section class="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-[1.5rem] bg-cream shadow-2xl"
+                 role="dialog"
+                 aria-modal="true"
+                 aria-labelledby="location-picker-heading">
+            <header class="flex items-start justify-between gap-4 border-b border-[#eee4d8] px-5 py-4 sm:px-7">
+                <div>
+                    <p class="text-xs font-extrabold uppercase tracking-[0.14em] text-tomato-dark">Set your search area</p>
+                    <h2 id="location-picker-heading" class="mt-1 text-xl font-extrabold">Choose a spot on the map</h2>
+                    <p class="mt-1 text-sm text-muted">Click the map to move the pin. Your selected coordinates are used for nearby results.</p>
+                </div>
+                <button type="button" class="grid size-10 shrink-0 place-items-center rounded-full border border-[#e7ddd1] bg-white text-xl" aria-label="Close location picker" @onclick="CloseLocationPicker">×</button>
+            </header>
+            <div class="min-h-[45vh] flex-1 p-3 sm:min-h-[55vh] sm:p-5">
+                <LeafletMap @key="_pickerMapInstanceKey"
+                            Center="@PickerCenter"
+                            IsPicker="true"
+                            FitMarkers="false"
+                            Zoom="14"
+                            AccessibleLabel="Choose your search location by clicking the map"
+                            OnLocationPicked="SetPickedLocation" />
+            </div>
+            <footer class="flex flex-col gap-3 border-t border-[#eee4d8] bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+                <p class="text-sm text-muted" aria-live="polite">
+                    @if (_pickedLocation is { } picked)
+                    {
+                        <span>Pin: @picked.Latitude.ToString("F5", CultureInfo.InvariantCulture), @picked.Longitude.ToString("F5", CultureInfo.InvariantCulture)</span>
+                    }
+                    else
+                    {
+                        <span>Choose a point on the map to set your location.</span>
+                    }
+                </p>
+                <div class="flex justify-end gap-3">
+                    <button type="button" class="min-h-11 rounded-full px-5 font-bold text-muted hover:bg-[#f8f3ec]" @onclick="CloseLocationPicker">Cancel</button>
+                    <button type="button"
+                            class="min-h-11 rounded-full bg-tomato px-6 font-extrabold text-white hover:bg-tomato-dark disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled="@(_pickedLocation is null)"
+                            @onclick="ApplyPickedLocationAsync">
+                        Use this location
+                    </button>
+                </div>
+            </footer>
+        </section>
+    </div>
+}
+
 @code {
     private string _query = string.Empty;
     private string? _errorMessage;
     private bool _isLoading;
     private bool _isLoadingUrl;
+    private bool _isGettingLocation;
+    private bool _isLocationPickerOpen;
+    private bool _showMap;
     private string _knownLocationKey = string.Empty;
+    private string? _locationMessage;
     private SearchResult? _result;
     private ParsedCraving? _parsedCraving;
     private SupportedLocation _selectedLocation = new();
     private List<ActiveFilterChip> _activeChips = [];
     private CancellationTokenSource? _searchCancellation;
     private ManualSearchFilters _filters = new();
+    private MapLocation? _pickedLocation;
+    private int? _selectedRestaurantId;
+    private int _mapInstanceKey;
+    private int _pickerMapInstanceKey;
+    private IJSObjectReference? _mapModule;
 
     private string SortValue => (_filters.Sort ?? SearchSort.BestMatch).ToString();
+    private MapLocation MapCenter =>
+        _result?.Verified.Concat(_result.Unverified)
+            .FirstOrDefault(match => match.Restaurant.Id == _selectedRestaurantId) is { } match
+            ? new MapLocation(match.Restaurant.Latitude, match.Restaurant.Longitude)
+            : new MapLocation(_selectedLocation.Latitude, _selectedLocation.Longitude);
+    private MapLocation PickerCenter => _pickedLocation
+        ?? new MapLocation(_selectedLocation.Latitude, _selectedLocation.Longitude);
+    private IReadOnlyList<MapMarker> MapMarkers =>
+        _result?.Verified.Concat(_result.Unverified)
+            .Select(match => new MapMarker(
+                match.Restaurant.Id,
+                match.Restaurant.Name,
+                match.BestMatchingMenuItem.Name,
+                match.BestMatchingMenuItem.Price,
+                match.Restaurant.Latitude,
+                match.Restaurant.Longitude))
+            .ToArray()
+        ?? [];
     private int _manualFilterCount =>
         _filters.Flavors.Count + _filters.Textures.Count + _filters.OtherCharacteristics.Count
         + _filters.Cuisines.Count + _filters.Niches.Count + _filters.DietaryPreferences.Count
@@ -265,6 +398,7 @@
         _isLoading = true;
         _errorMessage = null;
         _result = null;
+        _selectedRestaurantId = null;
         BuildChips();
         await InvokeAsync(StateHasChanged);
 
@@ -303,6 +437,123 @@
         Navigation.NavigateTo(SearchUrlBuilder.BuildExploreUri(query, filters, _selectedLocation));
 
     private Task RetryAsync() => RunSearchAsync();
+
+    private void SetMapVisibility(bool visible)
+    {
+        if (_showMap == visible)
+        {
+            return;
+        }
+
+        _showMap = visible;
+        if (visible)
+        {
+            _mapInstanceKey++;
+        }
+    }
+
+    private Task SelectRestaurantAsync(int restaurantId)
+    {
+        _selectedRestaurantId = restaurantId;
+        if (!_showMap)
+        {
+            _showMap = true;
+            _mapInstanceKey++;
+        }
+        return Task.CompletedTask;
+    }
+
+    private async Task GetCurrentLocationAsync()
+    {
+        _isGettingLocation = true;
+        _locationMessage = null;
+        try
+        {
+            _mapModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/cravemap-map.js");
+            var result = await _mapModule.InvokeAsync<GeolocationResult>("getCurrentLocation");
+            if (!result.IsSuccess || !result.Latitude.HasValue || !result.Longitude.HasValue)
+            {
+                _locationMessage = result.Error ?? "Your location could not be determined. Choose a demo area or set a location on the map.";
+                return;
+            }
+
+            ApplySelectedLocation(
+                result.Latitude.Value,
+                result.Longitude.Value,
+                "Your current location");
+            _locationMessage = "Using your current location for nearby sample results. Coordinates are included in this page URL; no location history is saved.";
+            NavigateWith(_query, _filters);
+        }
+        catch (JSException exception)
+        {
+            Logger.LogWarning(exception, "Browser geolocation could not be started.");
+            _locationMessage = "Location services are unavailable. Choose a demo area or set a location on the map.";
+        }
+        finally
+        {
+            _isGettingLocation = false;
+        }
+    }
+
+    private void OpenLocationPicker()
+    {
+        _pickedLocation = null;
+        _pickerMapInstanceKey++;
+        _isLocationPickerOpen = true;
+    }
+
+    private Task SetPickedLocation(MapLocation location)
+    {
+        _pickedLocation = location;
+        return Task.CompletedTask;
+    }
+
+    private Task CloseLocationPicker()
+    {
+        _isLocationPickerOpen = false;
+        _pickedLocation = null;
+        return Task.CompletedTask;
+    }
+
+    private Task HandleLocationPickerKeydown(KeyboardEventArgs args) =>
+        string.Equals(args.Key, "Escape", StringComparison.Ordinal)
+            ? CloseLocationPicker()
+            : Task.CompletedTask;
+
+    private Task ApplyPickedLocationAsync()
+    {
+        if (_pickedLocation is not { } picked)
+        {
+            return Task.CompletedTask;
+        }
+
+        ApplySelectedLocation(picked.Latitude, picked.Longitude, "Pinned map location");
+        _isLocationPickerOpen = false;
+        _pickedLocation = null;
+        _locationMessage = "Search area updated to the location you selected on the map.";
+        NavigateWith(_query, _filters);
+        return Task.CompletedTask;
+    }
+
+    private void ApplySelectedLocation(double latitude, double longitude, string name)
+    {
+        var normalizedLatitude = Math.Round(latitude, 6);
+        var normalizedLongitude = Math.Round(longitude, 6);
+        _selectedLocation = new SupportedLocation
+        {
+            Name = name,
+            Latitude = normalizedLatitude,
+            Longitude = normalizedLongitude
+        };
+        _knownLocationKey = LocationKey(_selectedLocation);
+        _filters = _filters with
+        {
+            OriginLatitude = normalizedLatitude,
+            OriginLongitude = normalizedLongitude
+        };
+        SearchState.SetSelectedLocation(_selectedLocation);
+        SearchState.SetFilters(_filters);
+    }
 
     private async Task ChangeSort(ChangeEventArgs args)
     {
@@ -521,12 +772,22 @@
         return Regex.Replace(stripped, @"\s+", " ").Trim(' ', ',', ';', '-');
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         Navigation.LocationChanged -= OnLocationChanged;
         SearchState.Changed -= OnSearchStateChanged;
         _searchCancellation?.Cancel();
         _searchCancellation?.Dispose();
+        if (_mapModule is not null)
+        {
+            try
+            {
+                await _mapModule.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
     }
 
     private sealed record ActiveFilterChip(

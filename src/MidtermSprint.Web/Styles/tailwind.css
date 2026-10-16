@@ -130,6 +130,34 @@
         padding: 1.5rem;
         color: #792a1d;
     }
+
+    .cravemap-map {
+        min-height: 22rem;
+        width: 100%;
+        background: #f4eadb;
+    }
+
+    .cravemap-map-popup {
+        display: grid;
+        gap: 0.25rem;
+        min-width: 10rem;
+    }
+
+    .cravemap-map-popup__title {
+        color: #28241f;
+        font-size: 0.9rem;
+    }
+
+    .cravemap-map-popup__item {
+        color: #746e67;
+        font-size: 0.8rem;
+    }
+
+    .cravemap-map-popup__price {
+        color: #bd3d2c;
+        font-size: 0.85rem;
+        font-weight: 800;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
