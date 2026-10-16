@@ -306,6 +306,12 @@ public sealed class SearchServiceTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult(restaurants.SingleOrDefault(restaurant => restaurant.Slug == slug));
 
+        public Task<IReadOnlyList<Restaurant>> GetPublishedBySlugsAsync(
+            IReadOnlyCollection<string> slugs,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Restaurant>>(
+                restaurants.Where(restaurant => slugs.Contains(restaurant.Slug, StringComparer.OrdinalIgnoreCase)).ToArray());
+
         public Task<IReadOnlyList<Restaurant>> GetPublishedByIdsAsync(
             IReadOnlyCollection<int> ids,
             CancellationToken cancellationToken = default) =>

@@ -27,6 +27,22 @@ public sealed class RestaurantRepository(IDbContextFactory<CraveMapDbContext> co
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<Restaurant>> GetPublishedBySlugsAsync(
+        IReadOnlyCollection<string> slugs,
+        CancellationToken cancellationToken = default)
+    {
+        if (slugs.Count == 0)
+        {
+            return Array.Empty<Restaurant>();
+        }
+
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+        return await PublishedQuery(context)
+            .Where(restaurant => slugs.Contains(restaurant.Slug))
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<Restaurant>> GetPublishedByIdsAsync(
         IReadOnlyCollection<int> ids,
         CancellationToken cancellationToken = default)

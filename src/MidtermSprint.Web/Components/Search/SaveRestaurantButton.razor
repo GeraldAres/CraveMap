@@ -1,0 +1,92 @@
+@implements IDisposable
+@inject SavedRestaurantService SavedRestaurants
+@inject ILogger<SaveRestaurantButton> Logger
+
+<button type="button"
+        class="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#e7ddd1] bg-white px-4 text-sm font-bold text-ink hover:border-tomato/50 hover:text-tomato-dark disabled:cursor-wait disabled:opacity-60 @Class"
+        aria-label="@(_isSaved ? $"Remove {RestaurantName} from saved restaurants" : $"Save {RestaurantName}")"
+        aria-pressed="@(_isSaved ? "true" : "false")"
+        disabled="@(!_isReady || _isBusy)"
+        @onclick="ToggleAsync">
+    <span aria-hidden="true">@(_isSaved ? "♥" : "♡")</span>
+    @if (_errorMessage is not null)
+    {
+        <span>Unavailable</span>
+    }
+    else if (!_isReady)
+    {
+        <span>Loading…</span>
+    }
+    else
+    {
+        <span>@(_isSaved ? "Saved" : "Save")</span>
+    }
+</button>
+@if (_errorMessage is not null)
+{
+    <span class="text-xs font-semibold text-[#9b3023]" role="alert">@_errorMessage</span>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Slug { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string RestaurantName { get; set; } = string.Empty;
+    [Parameter] public string? Class { get; set; }
+
+    private bool _isReady;
+    private bool _isSaved;
+    private bool _isBusy;
+    private string? _loadedSlug;
+    private string? _errorMessage;
+
+    protected override void OnInitialized() => SavedRestaurants.Changed += OnSavedRestaurantsChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender || !string.Equals(_loadedSlug, Slug, StringComparison.OrdinalIgnoreCase))
+        {
+            await RefreshAsync();
+        }
+    }
+
+    private async Task ToggleAsync()
+    {
+        _isBusy = true;
+        _errorMessage = null;
+        try
+        {
+            _isSaved = await SavedRestaurants.ToggleAsync(Slug);
+            _loadedSlug = Slug;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Could not update saved status for restaurant {RestaurantSlug}.", Slug);
+            _errorMessage = "Couldn’t update saved restaurants in this browser.";
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private void OnSavedRestaurantsChanged() => _ = InvokeAsync(RefreshAsync);
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            _isSaved = await SavedRestaurants.IsSavedAsync(Slug);
+            _loadedSlug = Slug;
+            _isReady = true;
+            _errorMessage = null;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Could not read saved status for restaurant {RestaurantSlug}.", Slug);
+            _errorMessage = "Saved status is unavailable in this browser.";
+        }
+
+        StateHasChanged();
+    }
+
+    public void Dispose() => SavedRestaurants.Changed -= OnSavedRestaurantsChanged;
+}

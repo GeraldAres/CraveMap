@@ -1,0 +1,133 @@
+@page "/saved"
+@implements IDisposable
+@using MidtermSprint.Domain.Entities
+@inject SavedRestaurantService SavedRestaurants
+@inject IRestaurantRepository RestaurantRepository
+@inject ILogger<Saved> Logger
+
+<PageTitle>Saved restaurants — CraveMap</PageTitle>
+<HeadContent>
+    <meta name="description" content="Your saved CraveMap sample restaurant listings, stored in this browser." />
+</HeadContent>
+
+<section class="border-b border-[#eee4d8] bg-[linear-gradient(180deg,#fff4e9_0%,#fffaf3_100%)]">
+    <div class="mx-auto max-w-7xl px-4 py-9 sm:px-6 sm:py-12 lg:px-8">
+        <p class="text-xs font-extrabold uppercase tracking-[0.15em] text-tomato-dark">Your shortlist</p>
+        <h1 class="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Saved restaurants</h1>
+        <p class="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
+            Saved listings stay in this browser only. There’s no account, and clearing this browser’s site data removes your list.
+        </p>
+    </div>
+</section>
+
+<section class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8" aria-live="polite" aria-busy="@(_isLoading ? "true" : "false")">
+    @if (_isLoading)
+    {
+        <p class="text-sm font-semibold text-muted" role="status">Loading saved restaurants…</p>
+    }
+    else if (_loadError is not null)
+    {
+        <div class="rounded-2xl border border-[#f0c3b8] bg-[#fff4ef] p-6" role="alert">
+            <h2 class="font-extrabold">Your saved list couldn’t be loaded.</h2>
+            <p class="mt-2 text-sm text-muted">@_loadError</p>
+            <button type="button" class="mt-4 min-h-10 rounded-full bg-tomato px-4 text-sm font-extrabold text-white hover:bg-tomato-dark" @onclick="LoadSavedAsync">Try again</button>
+        </div>
+    }
+    else if (_restaurants.Count == 0 && _unavailableCount == 0)
+    {
+        <div class="rounded-[1.5rem] border border-dashed border-[#dacbbb] bg-white p-8 text-center sm:p-12">
+            <span class="mx-auto grid size-14 place-items-center rounded-2xl bg-[#fff0e8] text-2xl" aria-hidden="true">♡</span>
+            <h2 class="mt-4 text-xl font-extrabold">No saved restaurants yet</h2>
+            <p class="mt-2 text-sm text-muted">Save a sample listing from Explore or a restaurant detail page to keep it here.</p>
+            <NavLink href="/explore" class="mt-5 inline-flex min-h-11 items-center rounded-full bg-tomato px-5 font-extrabold text-white hover:bg-tomato-dark">Explore restaurants</NavLink>
+        </div>
+    }
+    else
+    {
+        @if (_unavailableCount > 0)
+        {
+            <p class="mb-5 rounded-xl border border-[#efd4ac] bg-[#fff8e9] p-4 text-sm leading-relaxed text-[#654c20]" role="status">
+                @_unavailableCount saved listing@(_unavailableCount == 1 ? "" : "s") no longer available in the sample dataset.
+            </p>
+        }
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            @foreach (var restaurant in _restaurants)
+            {
+                <article class="flex flex-col rounded-[1.5rem] border border-[#eee4d8] bg-white p-5 shadow-sm">
+                    <p class="text-xs font-extrabold uppercase tracking-[0.13em] text-tomato-dark">Sample listing</p>
+                    <h2 class="mt-2 text-xl font-extrabold">
+                        <NavLink href="@($"/restaurants/{Uri.EscapeDataString(restaurant.Slug)}")" class="hover:text-tomato-dark hover:underline">@restaurant.Name</NavLink>
+                    </h2>
+                    <p class="mt-2 line-clamp-3 flex-1 text-sm leading-relaxed text-muted">@restaurant.Description</p>
+                    <p class="mt-3 text-sm font-semibold text-muted">
+                        @restaurant.Address · @FormatPriceRange(restaurant.PriceRange)
+                        @if (restaurant.Rating is { } rating)
+                        {
+                            <span> · @rating.ToString("0.0") demo rating</span>
+                        }
+                    </p>
+                    <div class="mt-5 flex flex-wrap gap-2">
+                        <NavLink href="@($"/restaurants/{Uri.EscapeDataString(restaurant.Slug)}")"
+                                 class="inline-flex min-h-10 items-center rounded-full bg-ink px-4 text-sm font-bold text-white hover:bg-tomato-dark">
+                            View details
+                        </NavLink>
+                        <SaveRestaurantButton Slug="@restaurant.Slug"
+                                              RestaurantName="@restaurant.Name" />
+                    </div>
+                </article>
+            }
+        </div>
+    }
+    <p class="mt-6 text-xs leading-relaxed text-muted">All restaurant listings and details shown here are fictional sample data.</p>
+</section>
+
+@code {
+    private readonly SemaphoreSlim _loadGate = new(1, 1);
+    private IReadOnlyList<Restaurant> _restaurants = [];
+    private bool _isLoading = true;
+    private int _unavailableCount;
+    private string? _loadError;
+
+    protected override void OnInitialized() => SavedRestaurants.Changed += OnSavedRestaurantsChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadSavedAsync();
+        }
+    }
+
+    private void OnSavedRestaurantsChanged() => _ = InvokeAsync(LoadSavedAsync);
+
+    private async Task LoadSavedAsync()
+    {
+        await _loadGate.WaitAsync();
+        try
+        {
+            _isLoading = true;
+            _loadError = null;
+            var slugs = await SavedRestaurants.GetSavedSlugsAsync();
+            var available = await RestaurantRepository.GetPublishedBySlugsAsync(slugs);
+            var bySlug = available.ToDictionary(restaurant => restaurant.Slug, StringComparer.OrdinalIgnoreCase);
+            _restaurants = slugs.Where(bySlug.ContainsKey).Select(slug => bySlug[slug]).ToArray();
+            _unavailableCount = slugs.Count - _restaurants.Count;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Could not load the saved restaurant list.");
+            _loadError = "Please try again. If the problem continues, clear this site's saved data and reload.";
+        }
+        finally
+        {
+            _isLoading = false;
+            _loadGate.Release();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private static string FormatPriceRange(int priceRange) =>
+        priceRange is >= 1 and <= 3 ? string.Concat(Enumerable.Repeat("₱", priceRange)) : "Price varies";
+
+    public void Dispose() => SavedRestaurants.Changed -= OnSavedRestaurantsChanged;
+}

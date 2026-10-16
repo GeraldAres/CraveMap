@@ -1,0 +1,51 @@
+@page "/about"
+
+<PageTitle>About CraveMap</PageTitle>
+<HeadContent>
+    <meta name="description" content="Learn how CraveMap turns food cravings into sample menu discoveries and how to use its dietary information carefully." />
+</HeadContent>
+
+<section class="border-b border-[#eee4d8] bg-[linear-gradient(180deg,#fff4e9_0%,#fffaf3_100%)]">
+    <div class="mx-auto max-w-4xl px-4 py-12 sm:px-6 sm:py-16">
+        <p class="text-xs font-extrabold uppercase tracking-[0.15em] text-tomato-dark">A little about us</p>
+        <h1 class="mt-2 text-3xl font-black tracking-tight sm:text-5xl">CraveMap starts with what sounds good.</h1>
+        <p class="mt-5 max-w-3xl text-lg leading-relaxed text-muted">
+            Instead of searching only by restaurant name, describe a dish, flavor, texture, cuisine, or budget. CraveMap uses those clues to find sample menu ideas around a selected area.
+        </p>
+    </div>
+</section>
+
+<div class="mx-auto max-w-4xl space-y-8 px-4 py-9 sm:px-6 sm:py-12">
+    <section class="rounded-[1.5rem] border border-[#eee4d8] bg-white p-6 shadow-sm sm:p-8" aria-labelledby="how-heading">
+        <h2 id="how-heading" class="text-2xl font-black">How it works</h2>
+        <ol class="mt-5 space-y-4">
+            <li class="flex gap-4">
+                <span class="grid size-9 shrink-0 place-items-center rounded-xl bg-[#fff0e8] font-extrabold text-tomato-dark">1</span>
+                <p class="pt-1 text-sm leading-relaxed text-muted"><strong class="text-ink">Describe a craving.</strong> Search with everyday food words, or narrow results with cuisine, price, distance, and other preferences.</p>
+            </li>
+            <li class="flex gap-4">
+                <span class="grid size-9 shrink-0 place-items-center rounded-xl bg-[#f0f6ed] font-extrabold text-leaf">2</span>
+                <p class="pt-1 text-sm leading-relaxed text-muted"><strong class="text-ink">Compare sample matches.</strong> Browse menu ideas and their available sample details in a list or on the map.</p>
+            </li>
+            <li class="flex gap-4">
+                <span class="grid size-9 shrink-0 place-items-center rounded-xl bg-[#fff6df] font-extrabold text-[#765619]">3</span>
+                <p class="pt-1 text-sm leading-relaxed text-muted"><strong class="text-ink">Confirm before you go.</strong> Contact the restaurant directly to check current menus, prices, hours, ingredients, and allergen practices.</p>
+            </li>
+        </ol>
+    </section>
+
+    <section class="rounded-[1.5rem] border border-[#efd4ac] bg-[#fff8e9] p-6 sm:p-8" aria-labelledby="care-heading">
+        <p class="text-xs font-extrabold uppercase tracking-[0.13em] text-[#765619]">Important to know</p>
+        <h2 id="care-heading" class="mt-2 text-2xl font-black text-[#3d3321]">Sample information is not a safety guarantee.</h2>
+        <div class="mt-4 space-y-3 text-sm leading-relaxed text-[#654c20]">
+            <p>Restaurant names, menus, prices, ratings, locations, hours, and dietary or allergen details in this demo are fictional sample data. They may be incomplete or inaccurate.</p>
+            <p>Allergen evidence and dietary labels are informational examples only. CraveMap cannot confirm ingredients or prevent cross-contact. If you have an allergy or dietary requirement, ask the restaurant directly before ordering.</p>
+            <p>Map tiles are provided by OpenStreetMap. Choosing a location or using your browser’s location permission affects search results; saved restaurants are stored only in this browser.</p>
+        </div>
+    </section>
+
+    <div class="flex flex-wrap gap-3">
+        <NavLink href="/explore" class="inline-flex min-h-11 items-center rounded-full bg-tomato px-5 font-extrabold text-white hover:bg-tomato-dark">Explore sample menus</NavLink>
+        <NavLink href="/saved" class="inline-flex min-h-11 items-center rounded-full border border-[#e7ddd1] bg-white px-5 font-extrabold hover:border-tomato/50">View saved restaurants</NavLink>
+    </div>
+</div>

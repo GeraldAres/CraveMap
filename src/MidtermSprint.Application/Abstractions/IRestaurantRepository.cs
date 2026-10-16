@@ -14,6 +14,10 @@ public interface IRestaurantRepository
         string slug,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Restaurant>> GetPublishedBySlugsAsync(
+        IReadOnlyCollection<string> slugs,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<Restaurant>> GetPublishedByIdsAsync(
         IReadOnlyCollection<int> ids,
         CancellationToken cancellationToken = default);

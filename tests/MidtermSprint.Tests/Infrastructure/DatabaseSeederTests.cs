@@ -35,6 +35,9 @@ public sealed class DatabaseSeederTests
             await seeder.InitializeAsync();
 
             var restaurants = await new RestaurantRepository(contextFactory).GetPublishedAsync();
+            var savedSlugs = restaurants.Take(2).Select(restaurant => restaurant.Slug).ToArray();
+            var savedRestaurants = await new RestaurantRepository(contextFactory)
+                .GetPublishedBySlugsAsync(savedSlugs);
             var items = restaurants.SelectMany(restaurant => restaurant.MenuItems).ToArray();
             var peanutEvidence = items.SelectMany(item => item.Allergens)
                 .Where(evidence => evidence.Allergen?.Name == "Peanuts")
@@ -43,6 +46,8 @@ public sealed class DatabaseSeederTests
 
             Assert.Equal(33, restaurants.Count);
             Assert.Equal(128, items.Length);
+            Assert.Equal(savedSlugs.Order(), savedRestaurants.Select(restaurant => restaurant.Slug).Order());
+            Assert.Empty(await new RestaurantRepository(contextFactory).GetPublishedBySlugsAsync([]));
             Assert.Contains(restaurants, restaurant => restaurant.MenuItems.Count == 0);
             Assert.Contains(restaurants, restaurant => restaurant.Rating is null);
             Assert.Contains(peanutEvidence, status => status == AllergenEvidenceStatus.Contains);

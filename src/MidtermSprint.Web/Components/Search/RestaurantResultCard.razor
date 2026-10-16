@@ -5,7 +5,11 @@
         <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#fff0e8] text-2xl" aria-hidden="true">🍽️</span>
         <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
-                <h4 class="text-lg font-extrabold">@Match.Restaurant.Name</h4>
+                <h4 class="text-lg font-extrabold">
+                    <NavLink href="@RestaurantUri" class="hover:text-tomato-dark hover:underline">
+                        @Match.Restaurant.Name
+                    </NavLink>
+                </h4>
                 @if (IsUnverified)
                 {
                     <span class="rounded-full bg-[#fff1d7] px-2.5 py-1 text-[0.7rem] font-extrabold text-[#765619]">Needs checking</span>
@@ -49,12 +53,15 @@
     </div>
 
     <p class="mt-4 text-sm leading-relaxed text-muted">@Match.Explanation</p>
-    <button type="button"
-            class="mt-4 inline-flex min-h-10 items-center gap-2 rounded-full border border-[#e7ddd1] px-4 text-sm font-bold text-ink hover:border-tomato/50 hover:text-tomato-dark"
-            aria-pressed="@(IsSelected ? "true" : "false")"
-            @onclick="() => OnShowOnMap.InvokeAsync(Match.Restaurant.Id)">
-        <span aria-hidden="true">⌖</span> @(IsSelected ? "Selected on map" : "Show on map")
-    </button>
+    <div class="mt-4 flex flex-wrap gap-2">
+        <button type="button"
+                class="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#e7ddd1] px-4 text-sm font-bold text-ink hover:border-tomato/50 hover:text-tomato-dark"
+                aria-pressed="@(IsSelected ? "true" : "false")"
+                @onclick="() => OnShowOnMap.InvokeAsync(Match.Restaurant.Id)">
+            <span aria-hidden="true">⌖</span> @(IsSelected ? "Selected on map" : "Show on map")
+        </button>
+        <SaveRestaurantButton Slug="@Match.Restaurant.Slug" RestaurantName="@Match.Restaurant.Name" />
+    </div>
     @if (Match.MatchedMenuItems.Count > 1)
     {
         <details class="mt-3">
@@ -84,6 +91,8 @@
     [Parameter] public bool IsUnverified { get; set; }
     [Parameter] public bool IsSelected { get; set; }
     [Parameter] public EventCallback<int> OnShowOnMap { get; set; }
+
+    private string RestaurantUri => $"/restaurants/{Uri.EscapeDataString(Match.Restaurant.Slug)}";
 
     private string PriceRange =>
         Match.Restaurant.PriceRange is >= 1 and <= 4

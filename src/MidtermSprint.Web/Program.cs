@@ -32,6 +32,7 @@ builder.Services.AddScoped(serviceProvider =>
     serviceProvider.GetRequiredService<IOptions<DiscoveryOptions>>().Value);
 builder.Services.AddScoped<SearchStateService>();
 builder.Services.AddScoped<HomeDiscoveryService>();
+builder.Services.AddScoped<SavedRestaurantService>();
 
 var app = builder.Build();
 Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "App_Data"));

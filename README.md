@@ -17,6 +17,12 @@ dotnet run --project src/MidtermSprint.Web
 
 The Web project restores its npm dependencies and builds Tailwind and Leaflet assets as part of `dotnet build`/`dotnet run`. SQLite is created and seeded automatically in `src/MidtermSprint.Web/App_Data`.
 
+## Demo features
+
+- Explore fictional sample menus with craving search, filters, list/map views, and restaurant detail pages.
+- Save restaurants in this browser’s local storage; no account or server-side saved list is used.
+- Read about the demo and its data limitations at `/about`.
+
 ## Architecture
 
 - `MidtermSprint.Domain`: persistence-independent entities and enums.
