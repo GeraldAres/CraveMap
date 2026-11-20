@@ -35,7 +35,6 @@ builder.Services.AddScoped<HomeDiscoveryService>();
 builder.Services.AddScoped<SavedRestaurantService>();
 
 var app = builder.Build();
-Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "App_Data"));
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
