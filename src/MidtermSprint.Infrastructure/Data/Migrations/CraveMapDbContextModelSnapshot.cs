@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MidtermSprint.Infrastructure.Data;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
@@ -15,23 +16,32 @@ namespace MidtermSprint.Infrastructure.Data.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
+            modelBuilder
+                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
+
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("MidtermSprint.Domain.Entities.Allergen", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
 
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(120)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("slug");
 
                     b.HasKey("Id");
 
@@ -41,46 +51,56 @@ namespace MidtermSprint.Infrastructure.Data.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("Allergens");
+                    b.ToTable("allergens");
                 });
 
             modelBuilder.Entity("MidtermSprint.Domain.Entities.Characteristic", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int>("Kind")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(80)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("name");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Kind", "Name")
                         .IsUnique();
 
-                    b.ToTable("Characteristics");
+                    b.ToTable("characteristics");
                 });
 
             modelBuilder.Entity("MidtermSprint.Domain.Entities.Cuisine", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
 
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(120)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("slug");
 
                     b.HasKey("Id");
 
@@ -90,24 +110,29 @@ namespace MidtermSprint.Infrastructure.Data.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("Cuisines");
+                    b.ToTable("cuisines");
                 });
 
             modelBuilder.Entity("MidtermSprint.Domain.Entities.DietaryPreference", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
 
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(120)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("slug");
 
                     b.HasKey("Id");
 
@@ -117,24 +142,29 @@ namespace MidtermSprint.Infrastructure.Data.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("DietaryPreferences");
+                    b.ToTable("dietary_preferences");
                 });
 
             modelBuilder.Entity("MidtermSprint.Domain.Entities.FoodNiche", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
 
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(120)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("slug");
 
                     b.HasKey("Id");
 
@@ -144,47 +174,59 @@ namespace MidtermSprint.Infrastructure.Data.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("FoodNiches");
+                    b.ToTable("food_niches");
                 });
 
             modelBuilder.Entity("MidtermSprint.Domain.Entities.MenuItem", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int>("CuisineId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("cuisine_id");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(1200)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("description");
 
                     b.Property<string>("ImageUrl")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text")
+                        .HasColumnName("image_url");
 
                     b.Property<string>("Ingredients")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text")
+                        .HasColumnName("ingredients");
 
                     b.Property<bool>("IsAvailable")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_available");
 
                     b.Property<string>("MenuSection")
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("menu_section");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(180)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(180)")
+                        .HasColumnName("name");
 
                     b.Property<decimal>("Price")
                         .HasPrecision(10, 2)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("price");
 
                     b.Property<int>("RestaurantId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("restaurant_id");
 
                     b.HasKey("Id");
 
@@ -192,146 +234,177 @@ namespace MidtermSprint.Infrastructure.Data.Migrations
 
                     b.HasIndex("RestaurantId", "IsAvailable");
 
-                    b.ToTable("MenuItems");
+                    b.ToTable("menu_items");
                 });
 
             modelBuilder.Entity("MidtermSprint.Domain.Entities.MenuItemAllergen", b =>
                 {
                     b.Property<int>("MenuItemId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("menu_item_id");
 
                     b.Property<int>("AllergenId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("allergen_id");
 
                     b.Property<string>("CrossContactNote")
                         .HasMaxLength(500)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("cross_contact_note");
 
                     b.Property<int>("EvidenceStatus")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("evidence_status");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
 
                     b.Property<string>("Source")
                         .HasMaxLength(240)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(240)")
+                        .HasColumnName("source");
 
                     b.Property<DateOnly?>("VerifiedOn")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("date")
+                        .HasColumnName("verified_on");
 
                     b.HasKey("MenuItemId", "AllergenId");
 
                     b.HasIndex("AllergenId");
 
-                    b.ToTable("MenuItemAllergens");
+                    b.ToTable("menu_item_allergens");
                 });
 
             modelBuilder.Entity("MidtermSprint.Domain.Entities.MenuItemCharacteristic", b =>
                 {
                     b.Property<int>("MenuItemId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("menu_item_id");
 
                     b.Property<int>("CharacteristicId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("characteristic_id");
 
                     b.HasKey("MenuItemId", "CharacteristicId");
 
                     b.HasIndex("CharacteristicId");
 
-                    b.ToTable("MenuItemCharacteristics");
+                    b.ToTable("menu_item_characteristics");
                 });
 
             modelBuilder.Entity("MidtermSprint.Domain.Entities.MenuItemDietaryAttribute", b =>
                 {
                     b.Property<int>("MenuItemId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("menu_item_id");
 
                     b.Property<int>("DietaryPreferenceId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("dietary_preference_id");
 
                     b.Property<bool>("IsVerified")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_verified");
 
                     b.HasKey("MenuItemId", "DietaryPreferenceId");
 
                     b.HasIndex("DietaryPreferenceId");
 
-                    b.ToTable("MenuItemDietaryAttributes");
+                    b.ToTable("menu_item_dietary_attributes");
                 });
 
             modelBuilder.Entity("MidtermSprint.Domain.Entities.MenuItemNiche", b =>
                 {
                     b.Property<int>("MenuItemId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("menu_item_id");
 
                     b.Property<int>("FoodNicheId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("food_niche_id");
 
                     b.HasKey("MenuItemId", "FoodNicheId");
 
                     b.HasIndex("FoodNicheId");
 
-                    b.ToTable("MenuItemNiches");
+                    b.ToTable("menu_item_niches");
                 });
 
             modelBuilder.Entity("MidtermSprint.Domain.Entities.Restaurant", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Address")
                         .IsRequired()
                         .HasMaxLength(300)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("address");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(1200)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(1200)")
+                        .HasColumnName("description");
 
                     b.Property<bool>("IsPublished")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_published");
 
                     b.Property<double>("Latitude")
-                        .HasColumnType("REAL");
+                        .HasColumnType("double precision")
+                        .HasColumnName("latitude");
 
                     b.Property<double>("Longitude")
-                        .HasColumnType("REAL");
+                        .HasColumnType("double precision")
+                        .HasColumnName("longitude");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(160)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("name");
 
                     b.Property<string>("Phone")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text")
+                        .HasColumnName("phone");
 
                     b.Property<string>("PhotoUrl")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text")
+                        .HasColumnName("photo_url");
 
                     b.Property<int>("PriceRange")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("price_range");
 
                     b.Property<decimal?>("Rating")
                         .HasPrecision(2, 1)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("numeric(2,1)")
+                        .HasColumnName("rating");
 
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(180)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(180)")
+                        .HasColumnName("slug");
 
                     b.Property<bool>("SupportsDineIn")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("boolean")
+                        .HasColumnName("supports_dine_in");
 
                     b.Property<bool>("SupportsTakeout")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("boolean")
+                        .HasColumnName("supports_takeout");
 
                     b.Property<string>("Website")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text")
+                        .HasColumnName("website");
 
                     b.HasKey("Id");
 
@@ -340,36 +413,43 @@ namespace MidtermSprint.Infrastructure.Data.Migrations
 
                     b.HasIndex("Latitude", "Longitude");
 
-                    b.ToTable("Restaurants", t =>
+                    b.HasIndex("IsPublished", "Latitude", "Longitude");
+
+                    b.ToTable("restaurants", t =>
                         {
-                            t.HasCheckConstraint("CK_Restaurants_Latitude", "Latitude BETWEEN -90 AND 90");
+                            t.HasCheckConstraint("ck_restaurants_latitude", "latitude BETWEEN -90 AND 90");
 
-                            t.HasCheckConstraint("CK_Restaurants_Longitude", "Longitude BETWEEN -180 AND 180");
+                            t.HasCheckConstraint("ck_restaurants_longitude", "longitude BETWEEN -180 AND 180");
 
-                            t.HasCheckConstraint("CK_Restaurants_PriceRange", "PriceRange BETWEEN 1 AND 3");
+                            t.HasCheckConstraint("ck_restaurants_price_range", "price_range BETWEEN 1 AND 3");
                         });
                 });
 
             modelBuilder.Entity("MidtermSprint.Domain.Entities.RestaurantHour", b =>
                 {
                     b.Property<int>("RestaurantId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("restaurant_id");
 
                     b.Property<int>("DayOfWeek")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer")
+                        .HasColumnName("day_of_week");
 
                     b.Property<TimeOnly?>("ClosesAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("closes_at");
 
                     b.Property<bool>("IsClosed")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_closed");
 
                     b.Property<TimeOnly?>("OpensAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("opens_at");
 
                     b.HasKey("RestaurantId", "DayOfWeek");
 
-                    b.ToTable("RestaurantHours");
+                    b.ToTable("restaurant_hours");
                 });
 
             modelBuilder.Entity("MidtermSprint.Domain.Entities.MenuItem", b =>

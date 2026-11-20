@@ -8,7 +8,7 @@ using MidtermSprint.Infrastructure.Data;
 namespace MidtermSprint.Infrastructure.Seeding;
 
 /// <summary>
-/// Creates the initial SQLite schema and inserts the fictional discovery dataset once.
+/// Creates the initial PostgreSQL schema and inserts the fictional discovery dataset once.
 /// </summary>
 public sealed class DatabaseSeeder(
     IDbContextFactory<CraveMapDbContext> contextFactory,
@@ -124,14 +124,19 @@ public sealed class DatabaseSeeder(
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
-        await context.Database.MigrateAsync(cancellationToken);
+        if (context.Database.IsRelational())
+        {
+            await context.Database.MigrateAsync(cancellationToken);
+        }
 
-        if (await context.Restaurants.AnyAsync(cancellationToken))
+        if (await HasAnyDataAsync(context, cancellationToken))
         {
             return;
         }
 
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = context.Database.IsRelational()
+            ? await context.Database.BeginTransactionAsync(cancellationToken)
+            : null;
 
         var cuisines = CuisineNames.Select(name => new Cuisine { Name = name, Slug = Slugify(name) }).ToArray();
         var niches = NicheNames.Select(name => new FoodNiche { Name = name, Slug = Slugify(name) }).ToArray();
@@ -218,8 +223,27 @@ public sealed class DatabaseSeeder(
         context.MenuItems.AddRange(menuItems);
         AddHours(context, restaurants);
         await context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
     }
+
+    private static async Task<bool> HasAnyDataAsync(
+        CraveMapDbContext context,
+        CancellationToken cancellationToken) =>
+        await context.Restaurants.AnyAsync(cancellationToken) ||
+        await context.RestaurantHours.AnyAsync(cancellationToken) ||
+        await context.MenuItems.AnyAsync(cancellationToken) ||
+        await context.Cuisines.AnyAsync(cancellationToken) ||
+        await context.FoodNiches.AnyAsync(cancellationToken) ||
+        await context.MenuItemNiches.AnyAsync(cancellationToken) ||
+        await context.Characteristics.AnyAsync(cancellationToken) ||
+        await context.MenuItemCharacteristics.AnyAsync(cancellationToken) ||
+        await context.DietaryPreferences.AnyAsync(cancellationToken) ||
+        await context.MenuItemDietaryAttributes.AnyAsync(cancellationToken) ||
+        await context.Allergens.AnyAsync(cancellationToken) ||
+        await context.MenuItemAllergens.AnyAsync(cancellationToken);
 
     private static void AddHours(CraveMapDbContext context, IReadOnlyList<Restaurant> restaurants)
     {

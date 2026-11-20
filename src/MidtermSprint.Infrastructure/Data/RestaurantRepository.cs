@@ -22,8 +22,13 @@ public sealed class RestaurantRepository(IDbContextFactory<CraveMapDbContext> co
         CancellationToken cancellationToken = default)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+        var escapedSlug = slug.Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("%", "\\%", StringComparison.Ordinal)
+            .Replace("_", "\\_", StringComparison.Ordinal);
         return await PublishedQuery(context)
-            .SingleOrDefaultAsync(restaurant => restaurant.Slug == slug, cancellationToken);
+            .SingleOrDefaultAsync(
+                restaurant => EF.Functions.ILike(restaurant.Slug, escapedSlug, "\\"),
+                cancellationToken);
     }
 
     /// <inheritdoc />
@@ -36,9 +41,10 @@ public sealed class RestaurantRepository(IDbContextFactory<CraveMapDbContext> co
             return Array.Empty<Restaurant>();
         }
 
+        var normalizedSlugs = slugs.Select(slug => slug.ToLowerInvariant()).ToArray();
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         return await PublishedQuery(context)
-            .Where(restaurant => slugs.Contains(restaurant.Slug))
+            .Where(restaurant => normalizedSlugs.Contains(restaurant.Slug))
             .ToListAsync(cancellationToken);
     }
 

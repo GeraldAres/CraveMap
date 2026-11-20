@@ -25,6 +25,8 @@ public sealed class CraveMapDbContext(DbContextOptions<CraveMapDbContext> option
             entity.HasKey(restaurant => restaurant.Id);
             entity.HasIndex(restaurant => restaurant.Slug).IsUnique();
             entity.HasIndex(restaurant => new { restaurant.Latitude, restaurant.Longitude });
+            entity.HasIndex(restaurant => new
+                { restaurant.IsPublished, restaurant.Latitude, restaurant.Longitude });
             entity.Property(restaurant => restaurant.Name).HasMaxLength(160).IsRequired();
             entity.Property(restaurant => restaurant.Slug).HasMaxLength(180).IsRequired();
             entity.Property(restaurant => restaurant.Description).HasMaxLength(1200).IsRequired();
@@ -32,9 +34,9 @@ public sealed class CraveMapDbContext(DbContextOptions<CraveMapDbContext> option
             entity.Property(restaurant => restaurant.Rating).HasPrecision(2, 1);
             entity.ToTable(table =>
             {
-                table.HasCheckConstraint("CK_Restaurants_PriceRange", "PriceRange BETWEEN 1 AND 3");
-                table.HasCheckConstraint("CK_Restaurants_Latitude", "Latitude BETWEEN -90 AND 90");
-                table.HasCheckConstraint("CK_Restaurants_Longitude", "Longitude BETWEEN -180 AND 180");
+                table.HasCheckConstraint("ck_restaurants_price_range", "price_range BETWEEN 1 AND 3");
+                table.HasCheckConstraint("ck_restaurants_latitude", "latitude BETWEEN -90 AND 90");
+                table.HasCheckConstraint("ck_restaurants_longitude", "longitude BETWEEN -180 AND 180");
             });
         });
 
@@ -107,6 +109,35 @@ public sealed class CraveMapDbContext(DbContextOptions<CraveMapDbContext> option
             entity.HasOne(link => link.MenuItem).WithMany(item => item.Allergens).HasForeignKey(link => link.MenuItemId);
             entity.HasOne(link => link.Allergen).WithMany().HasForeignKey(link => link.AllergenId);
         });
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            var tableName = entityType.GetTableName() ?? entityType.ClrType.Name;
+            entityType.SetTableName(ToSnakeCase(tableName));
+            foreach (var property in entityType.GetProperties())
+            {
+                property.SetColumnName(ToSnakeCase(property.Name));
+            }
+        }
+    }
+
+    private static string ToSnakeCase(string value)
+    {
+        var result = new System.Text.StringBuilder(value.Length + 8);
+        for (var index = 0; index < value.Length; index++)
+        {
+            var character = value[index];
+            if (char.IsUpper(character) && index > 0 &&
+                (char.IsLower(value[index - 1]) || char.IsDigit(value[index - 1]) ||
+                 index + 1 < value.Length && char.IsLower(value[index + 1])))
+            {
+                result.Append('_');
+            }
+
+            result.Append(char.ToLowerInvariant(character));
+        }
+
+        return result.ToString();
     }
 
     private static void ConfigureNamedLookup<TEntity>(
